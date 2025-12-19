@@ -11,58 +11,54 @@ const ResultView: React.FC<Props> = ({ result, onReset }) => {
   const [tab, setTab] = useState<'easy' | 'gourmet'>('easy');
 
   return (
-    <div className="animate-fadeIn space-y-8 pb-20">
-      <div className="text-center space-y-6 pt-4">
-        <div className="inline-block px-4 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-black rounded-full uppercase tracking-widest">
-          Recipe Suggested by AI
+    <div className="animate-fadeIn space-y-8 pb-20 pt-10">
+      <div className="text-center space-y-6">
+        <div className="inline-block px-4 py-1.5 bg-orange-50 text-[#ff5d01] text-xs font-black rounded-full uppercase tracking-widest">
+          Fusion Master Recipe
         </div>
-        <h2 className="text-4xl font-black text-slate-900 leading-tight tracking-tighter">
+        <h2 className="text-3xl font-black text-slate-900 leading-tight">
           {result.dishName}
         </h2>
         <div className="relative px-6">
-          <span className="absolute left-0 top-0 text-4xl text-emerald-100">"</span>
           <p className="text-slate-500 italic text-lg font-medium leading-relaxed">
-            {result.comment}
+            "{result.comment}"
           </p>
-          <span className="absolute right-0 bottom-0 text-4xl text-emerald-100">"</span>
         </div>
       </div>
 
-      <div className="bg-slate-100 p-1.5 rounded-[28px] flex sticky top-4 z-30 backdrop-blur-md bg-opacity-80">
+      <div className="bg-[#F2F4F6] p-1.5 rounded-2xl flex sticky top-4 z-30">
         <button
           onClick={() => setTab('easy')}
-          className={`flex-1 py-4 text-sm font-black rounded-[24px] transition-all ${
+          className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
             tab === 'easy' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
           }`}
         >
-          ⚡ 간편 조리
+          ⚡ 간편 레시피
         </button>
         <button
           onClick={() => setTab('gourmet')}
-          className={`flex-1 py-4 text-sm font-black rounded-[24px] transition-all ${
+          className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${
             tab === 'gourmet' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
           }`}
         >
-          ✨ 셰프 조리
+          ✨ 셰프의 킥
         </button>
       </div>
 
-      <div className="bg-white rounded-[40px] p-8 shadow-xl shadow-slate-100 border border-slate-50">
-        <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-2">
-          <span className="text-emerald-500">Step by Step</span>
-        </h3>
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-50">
+        <h3 className="text-xl font-black text-slate-900 mb-8 brand-orange-text">Step by Step</h3>
         <div 
           className="recipe-content prose prose-slate max-w-none text-slate-800 font-medium"
           dangerouslySetInnerHTML={{ __html: tab === 'easy' ? result.easyRecipe : result.gourmetRecipe }}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <h3 className="text-lg font-black text-slate-900 px-2 mt-4">유사한 요리 추천</h3>
+      <div className="space-y-4">
+        <h3 className="text-lg font-black text-slate-900">추천 퓨전 대안</h3>
         {result.similarRecipes.map((recipe, idx) => (
-          <div key={idx} className="bg-emerald-50 p-6 rounded-[32px] border border-emerald-100">
-            <h4 className="text-lg font-black text-emerald-900 mb-1">{recipe.title}</h4>
-            <p className="text-sm text-emerald-700 font-medium leading-relaxed">{recipe.reason}</p>
+          <div key={idx} className="bg-orange-50/50 p-6 rounded-3xl border border-orange-100">
+            <h4 className="text-lg font-black text-orange-900 mb-1">{recipe.title}</h4>
+            <p className="text-sm text-orange-700 font-medium leading-relaxed">{recipe.reason}</p>
           </div>
         ))}
       </div>
@@ -70,49 +66,22 @@ const ResultView: React.FC<Props> = ({ result, onReset }) => {
       <div className="flex flex-col gap-4 pt-10">
         <button
           onClick={onReset}
-          className="w-full py-6 bg-slate-900 text-white font-bold text-lg rounded-[32px] shadow-xl hover:bg-black transition-all active:scale-95"
+          className="w-full py-6 bg-[#ff5d01] text-white font-bold text-lg rounded-2xl shadow-xl active:scale-95 transition-all"
         >
-          다른 요리 하기
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="w-full py-4 text-slate-300 text-sm font-bold hover:text-slate-400"
-        >
-          레시피 인쇄하기
+          새로운 추천 받기
         </button>
       </div>
 
       <style>{`
-        .recipe-content ol {
-          list-style-type: none;
-          counter-reset: recipe-step;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-        .recipe-content ol li {
-          counter-increment: recipe-step;
-          position: relative;
-          padding-left: 3.5rem;
-          font-size: 1.15rem;
-          line-height: 1.7;
-        }
+        .recipe-content ol { list-style: none; counter-reset: r-step; padding: 0; display: flex; flex-direction: column; gap: 1.5rem; }
+        .recipe-content ol li { counter-increment: r-step; position: relative; padding-left: 3.5rem; font-size: 1.1rem; line-height: 1.6; }
         .recipe-content ol li::before {
-          content: counter(recipe-step);
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 2.5rem;
-          height: 2.5rem;
-          background: #ECFDF5;
-          color: #10B981;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 1rem;
-          font-weight: 900;
-          font-size: 1rem;
+          content: counter(r-step);
+          position: absolute; left: 0; top: 0;
+          width: 2.2rem; height: 2.2rem;
+          background: #FFF3ED; color: #ff5d01;
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 12px; font-weight: 900; font-size: 0.9rem;
         }
       `}</style>
     </div>

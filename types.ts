@@ -1,7 +1,9 @@
 
 export interface UserChoices {
+  mode: 'fridge' | 'seasonal';
   ingredients: string;
   sauces: string[];
+  cuisine: string;
   partner: string;
   theme: string;
   tools: string[];
@@ -29,10 +31,13 @@ export interface RecipeResult {
 
 export enum Step {
   Welcome = 0,
-  Ingredients = 1,
-  Suggestions = 2,
-  Preferences = 3,
-  Environment = 4,
-  Loading = 5,
-  Result = 6
+  ModeSelection = 1,
+  Ingredients = 2,
+  SeasonalSelection = 3,
+  CuisineSelection = 4,
+  Suggestions = 5,
+  Preferences = 6,
+  Environment = 7,
+  Loading = 8,
+  Result = 9
 }

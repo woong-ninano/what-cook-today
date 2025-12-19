@@ -5,19 +5,27 @@ interface TagButtonProps {
   label: string;
   selected: boolean;
   onClick: () => void;
+  subLabel?: string;
 }
 
-const TagButton: React.FC<TagButtonProps> = ({ label, selected, onClick }) => {
+const TagButton: React.FC<TagButtonProps> = ({ label, selected, onClick, subLabel }) => {
   return (
     <button
       onClick={onClick}
-      className={`px-6 py-3.5 rounded-2xl text-[17px] font-bold transition-all duration-200 shadow-sm border ${
+      className={`group w-full p-5 rounded-2xl transition-all duration-300 border text-left flex flex-col gap-1 ${
         selected
-          ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-100 ring-4 ring-emerald-50'
-          : 'bg-white text-slate-600 border-slate-100 hover:border-emerald-200'
+          ? 'bg-[#ff5d01] border-[#ff5d01] shadow-lg shadow-orange-100'
+          : 'bg-[#F9FAFB] border-[#F2F4F6] hover:bg-white hover:border-[#ff5d01]'
       } active:scale-95`}
     >
-      {label}
+      <span className={`text-[17px] font-bold ${selected ? 'text-white' : 'text-slate-800'}`}>
+        {label}
+      </span>
+      {subLabel && (
+        <span className={`text-xs ${selected ? 'text-orange-100' : 'text-slate-400'}`}>
+          {subLabel}
+        </span>
+      )}
     </button>
   );
 };

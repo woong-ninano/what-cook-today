@@ -2,15 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserChoices, RecipeResult } from "../types";
 
-// API 인스턴스는 호출 시점에 생성하여 최신 키를 반영합니다.
+// Always use process.env.API_KEY directly to initialize GoogleGenAI.
 const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API_KEY가 설정되지 않았습니다. Vercel 환경 변수를 확인해주세요.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
 
+/**
+ * Fetches ingredient and sauce suggestions based on user input.
+ */
 export const fetchSuggestions = async (ingredients: string) => {
   try {
     const ai = getAI();
@@ -33,13 +32,18 @@ export const fetchSuggestions = async (ingredients: string) => {
       }
     });
 
-    return JSON.parse(response.text || '{"subIngredients":[], "sauces":[]}');
+    // Directly access the .text property from GenerateContentResponse as per guidelines.
+    const jsonStr = response.text?.trim() || '{"subIngredients":[], "sauces":[]}';
+    return JSON.parse(jsonStr);
   } catch (error) {
     console.error("Suggestions Error:", error);
     return { subIngredients: [], sauces: [] };
   }
 };
 
+/**
+ * Generates a full recipe based on user choices using the Gemini 3 Pro model.
+ */
 export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult> => {
   const ai = getAI();
   const prompt = `
@@ -98,5 +102,7 @@ export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult
     }
   });
 
-  return JSON.parse(response.text || '{}');
+  // Directly access the .text property from GenerateContentResponse as per guidelines.
+  const jsonStr = response.text?.trim() || '{}';
+  return JSON.parse(jsonStr);
 };

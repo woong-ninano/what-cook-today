@@ -9,20 +9,26 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
     <style>
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
-            background-color: #f8fafc;
+            font-family: 'Pretendard', sans-serif;
+            background-color: #FDFCF9; /* 모던 오프화이트 */
             -webkit-tap-highlight-color: transparent;
-            font-size: 18px; /* 기본 폰트 크기 상향 */
+            font-size: 18px;
+            color: #1A1C1E;
         }
         .min-h-dvh {
             min-height: 100dvh;
         }
         input, select, textarea {
-            font-size: 18px !important; /* iOS 자동 줌 방지 및 가독성 */
-            color: #0f172a !important; /* 아이폰 크롬 글자색 강제 */
+            font-size: 18px !important;
+            color: #1A1C1E !important;
+            appearance: none;
         }
         ::placeholder {
-            color: #cbd5e1 !important;
+            color: #A0AEC0 !important;
+        }
+        /* 스무스 스크롤 */
+        html {
+            scroll-behavior: smooth;
         }
     </style>
 <script type="importmap">
@@ -36,7 +42,7 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 antialiased">
+<body class="antialiased">
     <div id="root"></div>
 </body>
 </html>

@@ -5,18 +5,17 @@ interface TagButtonProps {
   label: string;
   selected: boolean;
   onClick: () => void;
-  variant?: 'single' | 'multi';
 }
 
 const TagButton: React.FC<TagButtonProps> = ({ label, selected, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`px-5 py-3 rounded-2xl text-lg font-bold transition-all duration-300 border-2 shadow-sm ${
+      className={`px-6 py-3.5 rounded-2xl text-[17px] font-bold transition-all duration-200 shadow-sm border ${
         selected
-          ? 'bg-slate-900 text-white border-slate-900 scale-105 z-10'
-          : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
-      }`}
+          ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-100 ring-4 ring-emerald-50'
+          : 'bg-white text-slate-600 border-slate-100 hover:border-emerald-200'
+      } active:scale-95`}
     >
       {label}
     </button>

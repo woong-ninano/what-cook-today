@@ -2,15 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserChoices, RecipeResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// API 인스턴스는 호출 시점에 생성하여 최신 키를 반영합니다.
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-// 주재료에 따른 부재료 및 양념 추천 (Gemini 3 Flash 사용)
 export const fetchSuggestions = async (ingredients: string) => {
-  const prompt = `
-    사용자가 입력한 주재료: "${ingredients}"
-    이 재료들로 요리할 때 가장 잘 어울리는 '추천 부재료' 6개와 '추천 양념' 6개를 한국어로 제안해줘.
-    시니어 사용자가 보기 좋게 아주 명확하고 친숙한 단어를 사용해줘.
-  `;
+  const ai = getAI();
+  const prompt = `사용자가 입력한 재료: "${ingredients}". 
+  이 재료들과 아주 잘 어울리는 신선한 부재료 6개와 필수 양념 6개를 한국 요리 트렌드에 맞춰서 추천해줘.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -20,47 +18,35 @@ export const fetchSuggestions = async (ingredients: string) => {
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          subIngredients: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: '추천 부재료 6개'
-          },
-          sauces: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: '추천 양념 6개'
-          }
+          subIngredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+          sauces: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
         required: ["subIngredients", "sauces"]
       }
     }
   });
 
-  const text = response.text;
-  if (!text) return { subIngredients: [], sauces: [] };
-  return JSON.parse(text) as { subIngredients: string[], sauces: string[] };
+  return JSON.parse(response.text || '{"subIngredients":[], "sauces":[]}');
 };
 
 export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult> => {
+  const ai = getAI();
   const prompt = `
-    당신은 전 세계 모든 요리에 정통한 '전설적인 AI 요리 마스터'입니다. 
-    한국인의 영혼을 가졌으며, 혁신적인 퓨전 요리를 창조하는 데 능숙합니다.
-    시니어 사용자를 위해 글자 크기가 큰 레시피를 제공한다고 생각하고 내용을 구성하세요.
+    당신은 세계적인 미슐랭 셰프이자 친절한 요리 선생님입니다. 
+    다음 조건에 맞는 최고의 레시피를 작성하세요:
+    - 주재료 및 부재료: ${choices.ingredients}
+    - 선택한 양념: ${choices.sauces.join(', ')}
+    - 상황: ${choices.partner}를 위한 ${choices.theme}
+    - 가용 도구: ${choices.tools.join(', ')}
+    - 조리 수준: ${choices.level}
 
-    [사용자 상황 데이터]
-    - 주재료: ${choices.ingredients}
-    - 보유 소스: ${choices.sauces.join(', ')}
-    - 식사 대상: ${choices.partner}
-    - 요리 테마: ${choices.theme}
-    - 조리 도구: ${choices.tools.join(', ')}
-    - 요리 실력: ${choices.level}
-
-    [마스터 셰프의 지침]
-    1. 요리 이름: 매력적이고 전문적인 이름.
-    2. 레시피 본문: 반드시 1. 2. 3. 숫자를 붙인 <ol><li>...</li></ol> 형식.
-    3. 설명: 시니어가 읽기 편하게 명확하고 따뜻한 말투.
-    4. 유사 추천: 2가지 제안.
-    5. 참고 링크: 구글/유튜브 검색 키워드 링크.
+    [출력 가이드라인]
+    1. dishName: 창의적이고 먹음직스러운 이름
+    2. comment: 이 요리를 추천하는 이유와 기대되는 맛 (따뜻한 문체)
+    3. easyRecipe: 조리 도구를 활용한 효율적인 요리법 (HTML <ol><li> 구조)
+    4. gourmetRecipe: 맛의 깊이를 더하는 셰프의 팁이 포함된 요리법 (HTML <ol><li> 구조)
+    5. similarRecipes: 재료를 활용한 다른 아이디어 2개
+    6. referenceLinks: 관련 정보 (제목과 URL 형식)
   `;
 
   const response = await ai.models.generateContent({
@@ -82,8 +68,7 @@ export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult
               properties: {
                 title: { type: Type.STRING },
                 reason: { type: Type.STRING }
-              },
-              required: ["title", "reason"]
+              }
             }
           },
           referenceLinks: {
@@ -93,18 +78,14 @@ export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult
               properties: {
                 title: { type: Type.STRING },
                 url: { type: Type.STRING }
-              },
-              required: ["title", "url"]
+              }
             }
           }
         },
-        required: ["dishName", "comment", "easyRecipe", "gourmetRecipe", "similarRecipes", "referenceLinks"],
-      },
-    },
+        required: ["dishName", "comment", "easyRecipe", "gourmetRecipe", "similarRecipes", "referenceLinks"]
+      }
+    }
   });
 
-  const text = response.text;
-  if (!text) throw new Error("마스터 셰프의 영감이 닿지 않았습니다.");
-  
-  return JSON.parse(text) as RecipeResult;
+  return JSON.parse(response.text || '{}');
 };

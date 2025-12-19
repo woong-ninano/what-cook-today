@@ -3,14 +3,14 @@ import React from 'react';
 
 const Header: React.FC = () => {
   return (
-    <header className="pt-10 pb-6 text-center">
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-4xl">👨‍🍳</span>
-        <h1 className="text-2xl font-black tracking-tight text-slate-800">
-          오늘 뭐 해먹지?
-        </h1>
-        <div className="w-8 h-1 bg-emerald-500 rounded-full"></div>
+    <header className="pt-12 pb-8 flex flex-col items-center gap-3">
+      <div className="bg-emerald-50 w-16 h-16 rounded-3xl flex items-center justify-center text-3xl shadow-sm border border-emerald-100">
+        🧑‍🍳
       </div>
+      <h1 className="text-2xl font-black tracking-tight text-slate-900">
+        AI 마스터 셰프
+      </h1>
+      <div className="w-12 h-1 bg-emerald-500 rounded-full opacity-30"></div>
     </header>
   );
 };

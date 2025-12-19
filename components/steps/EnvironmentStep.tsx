@@ -10,8 +10,8 @@ interface Props {
   onBack: () => void;
 }
 
-const TOOLS = ['가스레인지', '인덕션', '에어프라이어', '전자레인지', '뚝배기', '찜기', '멀티쿠커', '오븐'];
-const LEVELS = ['Lv.1 칼질이 서툴러요', 'Lv.2 웬만한 건 해요', 'Lv.3 내가 바로 셰프'];
+const TOOLS = ['가스레인지', '에어프라이어', '전자레인지', '오븐', '인덕션', '압력솥'];
+const LEVELS = ['Lv.1 요린이', 'Lv.2 평범한 주부', 'Lv.3 주방의 고수'];
 
 const EnvironmentStep: React.FC<Props> = ({ choices, setChoices, onGenerate, onBack }) => {
   const toggleTool = (tool: string) => {
@@ -24,10 +24,10 @@ const EnvironmentStep: React.FC<Props> = ({ choices, setChoices, onGenerate, onB
   };
 
   return (
-    <div className="space-y-10 animate-fadeIn py-4">
-      <section className="space-y-5">
-        <h2 className="text-2xl font-black text-slate-900 mb-4">어떤 도구가 있나요?</h2>
-        <div className="flex flex-wrap gap-2">
+    <div className="space-y-12 step-transition py-4">
+      <section className="space-y-6">
+        <h2 className="text-3xl font-black text-slate-900">조리 도구 선택</h2>
+        <div className="grid grid-cols-2 gap-3">
           {TOOLS.map(tool => (
             <TagButton
               key={tool}
@@ -39,33 +39,34 @@ const EnvironmentStep: React.FC<Props> = ({ choices, setChoices, onGenerate, onB
         </div>
       </section>
 
-      <section className="space-y-5">
-        <h2 className="text-2xl font-black text-slate-900 mb-4">나의 요리 레벨</h2>
-        <div className="relative">
-          <select
-            value={choices.level}
-            onChange={(e) => setChoices(prev => ({ ...prev, level: e.target.value }))}
-            className="w-full p-6 border-4 border-slate-100 rounded-[32px] bg-white text-slate-900 font-black focus:ring-4 focus:ring-amber-200 focus:outline-none transition-all appearance-none shadow-xl text-xl"
-            style={{ color: '#0f172a' }}
-          >
-            {LEVELS.map(lv => <option key={lv} value={lv} className="text-slate-900">{lv}</option>)}
-          </select>
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-2xl text-slate-400">
-            ▼
-          </div>
+      <section className="space-y-6">
+        <h2 className="text-3xl font-black text-slate-900">요리 자신감</h2>
+        <div className="space-y-3">
+          {LEVELS.map(lv => (
+            <button
+              key={lv}
+              onClick={() => setChoices(prev => ({ ...prev, level: lv }))}
+              className={`w-full p-6 rounded-3xl text-left font-bold transition-all border-2 ${
+                choices.level === lv
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md'
+                  : 'border-slate-100 bg-white text-slate-500'
+              }`}
+            >
+              {lv}
+            </button>
+          ))}
         </div>
       </section>
 
-      <div className="pt-8 flex flex-col gap-4">
+      <div className="pt-6 space-y-4">
         <button
           onClick={onGenerate}
-          className="w-full py-6 bg-gradient-to-br from-amber-500 to-orange-600 text-white text-2xl font-black rounded-[32px] shadow-2xl hover:from-amber-600 hover:to-orange-700 transition-all flex items-center justify-center gap-3 border-b-8 border-orange-800 active:scale-95"
+          className="w-full py-7 bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-2xl font-black rounded-3xl shadow-2xl shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
-          <span>✨</span>
-          마스터 레시피 생성!
+          ✨ 레시피 완성하기
         </button>
-        <button onClick={onBack} className="w-full py-3 text-slate-400 text-lg font-black hover:text-slate-600">
-          뒤로 가기
+        <button onClick={onBack} className="w-full py-2 text-slate-300 font-bold">
+          이전으로
         </button>
       </div>
     </div>

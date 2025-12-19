@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Step, UserChoices, RecipeResult } from './types';
 import Header from './components/Header';
 import WelcomeStep from './components/steps/WelcomeStep';
-import TaskSelectionStep from './components/steps/TaskSelectionStep';
 import IngredientsStep from './components/steps/IngredientsStep';
 import SuggestionStep from './components/steps/SuggestionStep';
 import PreferencesStep from './components/steps/PreferencesStep';
@@ -20,84 +19,61 @@ const App: React.FC = () => {
     partner: '👤 혼밥',
     theme: '🍚 든든한 한끼',
     tools: [],
-    level: 'Lv.2 기본적인 건 해요'
+    level: 'Lv.2 평범한 주부'
   });
-  const [suggestions, setSuggestions] = useState<{subIngredients: string[], sauces: string[]}>({
-    subIngredients: [],
-    sauces: []
-  });
+  const [suggestions, setSuggestions] = useState({ subIngredients: [], sauces: [] });
   const [result, setResult] = useState<RecipeResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const handleNext = () => setStep(prev => (prev + 1) as Step);
   const handleBack = () => setStep(prev => (prev - 1) as Step);
 
-  const goToSuggestions = async () => {
-    setIsLoadingSuggestions(true);
+  const handleIngredientsSubmit = async () => {
+    setIsSuggesting(true);
     try {
       const data = await fetchSuggestions(choices.ingredients);
       setSuggestions(data);
       setStep(Step.Suggestions);
     } catch (err) {
-      console.error(err);
-      setStep(Step.Suggestions); // 에러나도 일단 넘어감 (기본 목록이라도 보여주기 위해)
+      console.error("추천 로드 실패:", err);
+      setStep(Step.Suggestions); // 실패해도 다음 단계로 이동
     } finally {
-      setIsLoadingSuggestions(false);
+      setIsSuggesting(false);
     }
   };
 
   const startGeneration = async () => {
     setStep(Step.Loading);
-    setError(null);
     try {
       const recipe = await generateRecipe(choices);
       setResult(recipe);
       setStep(Step.Result);
-    } catch (err: any) {
-      setError(err.message || '문제가 발생했습니다. 다시 시도해 주세요.');
+    } catch (err) {
+      alert("셰프가 고민에 빠졌습니다. 잠시 후 다시 시도해주세요!");
       setStep(Step.Welcome);
     }
   };
 
   const renderStep = () => {
-    if (isLoadingSuggestions) return <div className="py-20 text-center font-black text-2xl animate-pulse">마스터가 재료를 고민 중입니다...</div>;
+    if (isSuggesting) return <LoadingStep customMessage="재료의 조화를 생각하고 있어요..." />;
 
     switch (step) {
-      case Step.Welcome:
-        return <WelcomeStep onNext={handleNext} />;
-      case Step.TaskSelection:
-        return <TaskSelectionStep onNext={handleNext} onBack={handleBack} />;
-      case Step.Ingredients:
-        return <IngredientsStep choices={choices} setChoices={setChoices} onNext={goToSuggestions} onBack={handleBack} />;
-      case Step.Suggestions:
-        return <SuggestionStep choices={choices} setChoices={setChoices} suggestions={suggestions} onNext={handleNext} onBack={handleBack} />;
-      case Step.Preferences:
-        return <PreferencesStep choices={choices} setChoices={setChoices} onNext={handleNext} onBack={handleBack} />;
-      case Step.Environment:
-        return <EnvironmentStep choices={choices} setChoices={setChoices} onGenerate={startGeneration} onBack={handleBack} />;
-      case Step.Loading:
-        return <LoadingStep />;
-      case Step.Result:
-        return result ? <ResultView result={result} onReset={() => setStep(Step.Welcome)} /> : null;
-      default:
-        return null;
+      case Step.Welcome: return <WelcomeStep onNext={handleNext} />;
+      case Step.Ingredients: return <IngredientsStep choices={choices} setChoices={setChoices} onNext={handleIngredientsSubmit} onBack={handleBack} />;
+      case Step.Suggestions: return <SuggestionStep choices={choices} setChoices={setChoices} suggestions={suggestions} onNext={handleNext} onBack={handleBack} />;
+      case Step.Preferences: return <PreferencesStep choices={choices} setChoices={setChoices} onNext={handleNext} onBack={handleBack} />;
+      case Step.Environment: return <EnvironmentStep choices={choices} setChoices={setChoices} onGenerate={startGeneration} onBack={handleBack} />;
+      case Step.Loading: return <LoadingStep />;
+      case Step.Result: return result ? <ResultView result={result} onReset={() => setStep(Step.Welcome)} /> : null;
+      default: return <WelcomeStep onNext={handleNext} />;
     }
   };
 
-  // 특정 단계에서는 헤더를 숨김
-  const showHeader = step !== Step.Suggestions && step !== Step.Loading && step !== Step.Result;
-
   return (
-    <div className="min-h-dvh bg-slate-50 flex flex-col items-center">
-      <div className="w-full max-w-md bg-white shadow-2xl min-h-dvh flex flex-col border-x border-gray-100">
-        {showHeader && <Header />}
-        <main className="flex-1 p-6">
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-lg font-bold">
-              ⚠️ {error}
-            </div>
-          )}
+    <div className="min-h-dvh bg-[#FDFDFD] flex justify-center">
+      <div className="w-full max-w-lg bg-white min-h-dvh flex flex-col shadow-2xl shadow-slate-200/50 relative overflow-hidden">
+        {step !== Step.Welcome && step !== Step.Loading && <Header />}
+        <main className="flex-1 px-8 pb-12">
           {renderStep()}
         </main>
       </div>

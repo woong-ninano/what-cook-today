@@ -12,21 +12,21 @@ interface Props {
 }
 
 const SuggestionStep: React.FC<Props> = ({ choices, setChoices, suggestions, onNext, onBack }) => {
-  const toggleItem = (field: 'sauces', value: string) => {
+  const toggleSauce = (sauce: string) => {
     setChoices(prev => ({
       ...prev,
-      [field]: prev[field].includes(value)
-        ? prev[field].filter(v => v !== value)
-        : [...prev[field], value]
+      sauces: prev.sauces.includes(sauce)
+        ? prev.sauces.filter(s => s !== sauce)
+        : [...prev.sauces, sauce]
     }));
   };
 
-  const handleSubIngredientToggle = (item: string) => {
+  const toggleSubIngredient = (item: string) => {
     const current = choices.ingredients;
     if (current.includes(item)) {
       setChoices(prev => ({
         ...prev,
-        ingredients: current.replace(new RegExp(`,?\\s?${item}`, 'g'), '').replace(/^,\s?/, '').trim()
+        ingredients: current.split(',').map(s => s.trim()).filter(s => s !== item).join(', ')
       }));
     } else {
       setChoices(prev => ({
@@ -37,58 +37,55 @@ const SuggestionStep: React.FC<Props> = ({ choices, setChoices, suggestions, onN
   };
 
   return (
-    <div className="space-y-12 animate-fadeIn py-6">
-      <div className="space-y-3">
-        <h2 className="text-4xl font-black text-slate-900 leading-tight tracking-tighter">
-          마스터 웅이의<br/>
-          <span className="text-amber-500">추천 재료</span> 등장!
+    <div className="space-y-10 step-transition pb-10">
+      <div className="space-y-2">
+        <h2 className="text-3xl font-black text-slate-900 leading-tight">
+          맛을 더해줄<br/><span className="text-emerald-500">마법의 한 끗</span>
         </h2>
-        <p className="text-2xl text-slate-500 font-bold leading-relaxed">
-          이것들도 함께 넣으면<br/>맛이 훨씬 깊어집니다.
-        </p>
+        <p className="text-slate-500 font-medium">추천 재료를 클릭해 추가해보세요.</p>
       </div>
 
-      <section className="space-y-6">
-        <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-          <span className="text-3xl">🥦</span> 어울리는 부재료
+      <section className="space-y-4">
+        <h3 className="text-lg font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> 어울리는 부재료
         </h3>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {suggestions.subIngredients.map(item => (
             <TagButton
               key={item}
               label={item}
               selected={choices.ingredients.includes(item)}
-              onClick={() => handleSubIngredientToggle(item)}
+              onClick={() => toggleSubIngredient(item)}
             />
           ))}
         </div>
       </section>
 
-      <section className="space-y-6">
-        <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-          <span className="text-3xl">🧴</span> 찰떡궁합 양념
+      <section className="space-y-4">
+        <h3 className="text-lg font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <span className="w-2 h-2 bg-amber-500 rounded-full"></span> 찰떡궁합 양념
         </h3>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {suggestions.sauces.map(sauce => (
             <TagButton
               key={sauce}
               label={sauce}
               selected={choices.sauces.includes(sauce)}
-              onClick={() => toggleItem('sauces', sauce)}
+              onClick={() => toggleSauce(sauce)}
             />
           ))}
         </div>
       </section>
 
-      <div className="pt-10 flex flex-col gap-4">
+      <div className="pt-6 space-y-3">
         <button
           onClick={onNext}
-          className="w-full py-7 bg-amber-500 text-white text-3xl font-black rounded-[40px] shadow-2xl hover:bg-amber-600 transition-all active:scale-95 border-b-8 border-amber-800"
+          className="w-full py-6 bg-slate-900 text-white text-xl font-bold rounded-3xl shadow-xl transition-all active:scale-[0.98] hover:bg-black"
         >
-          좋아요, 이걸로 할게요!
+          선택 완료
         </button>
-        <button onClick={onBack} className="w-full py-4 text-slate-400 text-xl font-black hover:text-slate-600">
-          재료 다시 쓰기
+        <button onClick={onBack} className="w-full py-3 text-slate-400 font-bold">
+          재료 다시 입력
         </button>
       </div>
     </div>

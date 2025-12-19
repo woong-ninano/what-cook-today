@@ -29,11 +29,10 @@ export interface RecipeResult {
 
 export enum Step {
   Welcome = 0,
-  TaskSelection = 1,
-  Ingredients = 2,
-  Suggestions = 3, // AI 추천 부재료/양념 단계 추가
-  Preferences = 4,
-  Environment = 5,
-  Loading = 6,
-  Result = 7
+  Ingredients = 1,
+  Suggestions = 2,
+  Preferences = 3,
+  Environment = 4,
+  Loading = 5,
+  Result = 6
 }

@@ -3,30 +3,41 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UserChoices, RecipeResult } from "../types";
 
 // API 인스턴스는 호출 시점에 생성하여 최신 키를 반영합니다.
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY가 설정되지 않았습니다. Vercel 환경 변수를 확인해주세요.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const fetchSuggestions = async (ingredients: string) => {
-  const ai = getAI();
-  const prompt = `사용자가 입력한 재료: "${ingredients}". 
-  이 재료들과 아주 잘 어울리는 신선한 부재료 6개와 필수 양념 6개를 한국 요리 트렌드에 맞춰서 추천해줘.`;
+  try {
+    const ai = getAI();
+    const prompt = `사용자가 입력한 재료: "${ingredients}". 
+    이 재료들과 아주 잘 어울리는 신선한 부재료 6개와 필수 양념 6개를 한국 요리 트렌드에 맞춰서 추천해줘.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          subIngredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-          sauces: { type: Type.ARRAY, items: { type: Type.STRING } }
-        },
-        required: ["subIngredients", "sauces"]
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subIngredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+            sauces: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["subIngredients", "sauces"]
+        }
       }
-    }
-  });
+    });
 
-  return JSON.parse(response.text || '{"subIngredients":[], "sauces":[]}');
+    return JSON.parse(response.text || '{"subIngredients":[], "sauces":[]}');
+  } catch (error) {
+    console.error("Suggestions Error:", error);
+    return { subIngredients: [], sauces: [] };
+  }
 };
 
 export const generateRecipe = async (choices: UserChoices): Promise<RecipeResult> => {

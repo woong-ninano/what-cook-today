@@ -12,26 +12,58 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
     {
       version: "v1.2.4",
       tag: "NEW",
+      date: "2024.05.21",
       changes: [
-        "🔍 편의점 메뉴 목록 '더 보기' 기능 (누적)",
-        "🛒 재료 목록 가독성 개선 (1열 변경)",
-        "➡️ 레시피 '다음/이전 레시피 보기' 지원"
+        "🔍 편의점 메뉴 목록 '더 보기' 기능 개선 (목록 유지)",
+        "🛒 결과 화면 재료 목록 가독성 개선 (1열 레이아웃)",
+        "✨ 전체적인 UI/UX 디테일 및 애니메이션 안정화"
       ]
     },
     {
       version: "v1.2.3",
+      date: "2024.05.15",
       changes: [
-        "➡️ 레시피 '다음 레시피 보기' 기능 추가",
-        "🔍 편의점 꿀조합 '더 보기' 기능 개선",
-        "🛒 레시피 결과에 '필요 재료 목록' 표기"
+        "➡️ 레시피 히스토리 탐색 기능 (이전/다음 레시피 보기)",
+        "📱 결과 화면에 '필요 재료 체크리스트' 추가",
+        "🔄 편의점 꿀조합 추천 로직 고도화"
       ]
     },
     {
-      version: "v1.2.2",
+      version: "v1.2.0",
+      tag: "Major",
+      date: "2024.05.01",
       changes: [
-        "🏪 자취생/편의점 꿀조합 요리 모드 추가",
-        "🔄 편의점 꿀조합 '다른 요리 추천받기' 기능",
-        "📸 고품질 요리 이미지 생성 지원"
+        "🏪 대규모 업데이트: '편의점 꿀조합' 모드 오픈!",
+        "📸 AI 요리 이미지 생성 기능 추가 (Beta)",
+        "🔗 레시피 관련 유튜브/블로그 참고 링크 제공"
+      ]
+    },
+    {
+      version: "v1.1.5",
+      date: "2024.04.20",
+      changes: [
+        "💡 '비슷한 추천 메뉴' 제안 기능 추가",
+        "⚡️ 간편 레시피 vs 셰프의 킥(고급) 레시피 탭 분리",
+        "🥘 요리 스타일(한식, 양식, 퓨전 등) 선택지 세분화"
+      ]
+    },
+    {
+      version: "v1.1.0",
+      date: "2024.04.05",
+      changes: [
+        "🌿 '제철 식재료' 추천 모드 추가",
+        "🧂 어울리는 양념 및 부재료 자동 추천 기능",
+        "👥 식사 인원(혼밥, 가족 등) 및 분위기 설정 옵션 추가"
+      ]
+    },
+    {
+      version: "v1.0.0",
+      tag: "Launch",
+      date: "2024.03.15",
+      changes: [
+        "🎉 '오늘 뭐 해먹지?' 서비스 정식 런칭",
+        "🧊 냉장고 파먹기(재료 기반 추천) 핵심 기능 탑재",
+        "👨‍🍳 AI 셰프의 맞춤형 레시피 생성 엔진 적용"
       ]
     }
   ];
@@ -71,7 +103,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               onClick={() => setShowUpdateModal(true)}
               className="text-[10px] text-slate-300 font-bold hover:text-[#ff5d01] transition-colors underline decoration-slate-200 underline-offset-2"
             >
-              v1.2.4
+              v1.2.4 Update Note
             </button>
           </div>
         </div>
@@ -84,12 +116,12 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
             className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-fadeIn"
             onClick={() => setShowUpdateModal(false)}
           ></div>
-          <div className="bg-white w-full h-[80vh] rounded-t-[32px] p-8 pb-10 shadow-2xl relative z-10 animate-[slideUp_0.3s_ease-out_forwards] flex flex-col">
+          <div className="bg-white w-full h-[85vh] rounded-t-[32px] p-8 pb-10 shadow-2xl relative z-10 animate-[slideUp_0.3s_ease-out_forwards] flex flex-col">
             <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-6 shrink-0"></div>
             
             <div className="flex items-center justify-between mb-6 shrink-0">
               <h3 className="text-2xl font-black text-slate-900">
-                업데이트 노트
+                히스토리
               </h3>
               <button 
                 onClick={() => setShowUpdateModal(false)}
@@ -101,33 +133,48 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
 
             <div className="overflow-y-auto flex-1 space-y-8 pr-2 custom-scrollbar">
               {updateHistory.map((update, idx) => (
-                <div key={idx} className="space-y-4">
-                  <div className="flex items-center gap-3 sticky top-0 bg-white py-2 z-10">
-                    <span className="text-lg font-black text-slate-800">{update.version}</span>
-                    {update.tag && (
-                      <span className="bg-orange-100 text-[#ff5d01] text-[10px] font-black px-2 py-1 rounded-md">
-                        {update.tag}
+                <div key={idx} className="space-y-4 relative">
+                  {/* Timeline Connector */}
+                  {idx < updateHistory.length - 1 && (
+                    <div className="absolute left-[11px] top-10 bottom-[-24px] w-0.5 bg-slate-100 -z-10"></div>
+                  )}
+
+                  <div className="flex items-center justify-between sticky top-0 bg-white py-2 z-10">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold z-20 ${idx === 0 ? 'bg-[#ff5d01] text-white shadow-md shadow-orange-200' : 'bg-slate-100 text-slate-400'}`}>
+                        {idx === 0 ? '★' : 'v'}
+                      </div>
+                      <span className={`text-lg font-black ${idx === 0 ? 'text-slate-900' : 'text-slate-600'}`}>
+                        {update.version}
                       </span>
-                    )}
+                      {update.tag && (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          update.tag === 'NEW' ? 'bg-orange-100 text-[#ff5d01]' : 
+                          update.tag === 'Major' ? 'bg-purple-100 text-purple-600' :
+                          'bg-slate-100 text-slate-500'
+                        }`}>
+                          {update.tag}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-300 font-medium font-mono">{update.date}</span>
                   </div>
-                  <ul className="space-y-3 pl-1">
+                  
+                  <ul className="space-y-3 pl-9">
                     {update.changes.map((note, i) => (
-                      <li key={i} className="flex items-start gap-3 text-slate-600 font-medium leading-relaxed text-sm">
-                        <span className="text-[#ff5d01] mt-1.5 w-1.5 h-1.5 rounded-full bg-[#ff5d01] block flex-shrink-0"></span>
+                      <li key={i} className="flex items-start gap-2 text-slate-600 font-medium leading-relaxed text-[13px]">
+                        <span className="text-slate-300 mt-1.5 w-1 h-1 rounded-full bg-current block flex-shrink-0"></span>
                         {note}
                       </li>
                     ))}
                   </ul>
-                  {idx < updateHistory.length - 1 && (
-                    <div className="h-px bg-slate-100 w-full mt-6"></div>
-                  )}
                 </div>
               ))}
             </div>
 
             <button
               onClick={() => setShowUpdateModal(false)}
-              className="w-full py-4 bg-[#ff5d01] text-white font-bold rounded-2xl hover:bg-[#e04d01] transition-colors mt-6 shrink-0 shadow-lg shadow-orange-100"
+              className="w-full py-4 bg-[#ff5d01] text-white font-bold rounded-2xl hover:bg-[#e04d01] transition-colors mt-6 shrink-0 shadow-lg shadow-orange-100 active:scale-95"
             >
               확인
             </button>

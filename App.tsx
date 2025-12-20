@@ -11,7 +11,7 @@ import PreferencesStep from './components/steps/PreferencesStep.tsx';
 import EnvironmentStep from './components/steps/EnvironmentStep.tsx';
 import LoadingStep from './components/steps/LoadingStep.tsx';
 import ResultView from './components/ResultView.tsx';
-import { generateRecipe, fetchSuggestions, fetchSeasonalIngredients } from './services/gemini.ts';
+import { generateRecipe, fetchSuggestions, fetchSeasonalIngredients, generateDishImage } from './services/gemini.ts';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>(Step.Welcome);
@@ -66,10 +66,20 @@ const App: React.FC = () => {
       const finalChoices = overridePrompt 
         ? { ...choices, theme: `✨ 선택된 메뉴: ${overridePrompt}` } 
         : choices;
+      
+      // 1. Generate Text Recipe
       const recipe = await generateRecipe(finalChoices, isRegen);
-      setResult(recipe);
+      
+      // 2. Generate Image based on the dish name
+      let imageUrl: string | undefined = undefined;
+      if (recipe.dishName) {
+        imageUrl = await generateDishImage(recipe.dishName);
+      }
+
+      setResult({ ...recipe, imageUrl });
       setStep(Step.Result);
     } catch (err) {
+      console.error(err);
       alert("AI 셰프가 고민에 빠졌습니다. 다시 시도해 주세요!");
       setStep(Step.Welcome);
     }

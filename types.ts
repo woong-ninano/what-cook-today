@@ -27,6 +27,7 @@ export interface RecipeResult {
   gourmetRecipe: string;
   similarRecipes: SimilarRecipe[];
   referenceLinks: ReferenceLink[];
+  imageUrl?: string;
 }
 
 export enum Step {

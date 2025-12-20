@@ -81,12 +81,17 @@ export const generateRecipe = async (choices: UserChoices, isRegenerate: boolean
     [Mission] 인류 최고의 고민인 '오늘 뭐 먹지'를 해결할 획기적인 퓨전 레시피를 제안하세요. 
     동양과 서양의 조화, 뜻밖의 재료 궁합을 선보여야 합니다.
 
+    [IMPORTANT LANGUAGE RULE] 
+    ALL OUTPUT MUST BE IN KOREAN (한국어). 
+    Do not use English in dishName, comment, or recipes. 
+    Translate any foreign dish names into Korean naturally (e.g., 'Pasta' -> '파스타').
+
     [Output Specification]
-    1. dishName: 창의적이고 감각적인 이름
-    2. comment: 왜 이 퓨전 조합이 완벽한지 설명
-    3. easyRecipe: 누구나 따라하는 법 (HTML <ol><li>)
-    4. gourmetRecipe: 셰프의 킥이 들어간 고차원 조리법 (HTML <ol><li>)
-    5. similarRecipes: 2가지 퓨전 대안
+    1. dishName: 창의적이고 감각적인 이름 (한국어)
+    2. comment: 왜 이 퓨전 조합이 완벽한지 설명 (한국어)
+    3. easyRecipe: 누구나 따라하는 법 (HTML <ol><li>) (한국어)
+    4. gourmetRecipe: 셰프의 킥이 들어간 고차원 조리법 (HTML <ol><li>) (한국어)
+    5. similarRecipes: 2가지 퓨전 대안 (한국어)
     6. referenceLinks: 요리 관련 유사한 음식이나 팁을 얻을 수 있는 유용한 웹사이트 링크 2개 (JSON 필드: title, url)
   `;
 
@@ -123,4 +128,28 @@ export const generateRecipe = async (choices: UserChoices, isRegenerate: boolean
   });
 
   return JSON.parse(response.text || '{}');
+};
+
+export const generateDishImage = async (dishName: string): Promise<string | undefined> => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image', // nano banana
+      contents: { 
+        parts: [{ 
+          text: `A delicious, high-quality professional food photography of ${dishName}. Studio lighting, appetizing, 4k resolution, top-down view or 45-degree angle. No text overlay.` 
+        }] 
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return undefined;
+  } catch (error) {
+    console.error("Image generation failed", error);
+    return undefined;
+  }
 };

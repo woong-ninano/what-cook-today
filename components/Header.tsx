@@ -8,7 +8,7 @@ const Header: React.FC = () => {
         🧑‍🍳
       </div>
       <h1 className="text-2xl font-black tracking-tight text-slate-900">
-        AI 마스터 셰프
+        웅이의 퓨전요리연구소
       </h1>
       <div className="w-12 h-1 bg-emerald-500 rounded-full opacity-30"></div>
     </header>

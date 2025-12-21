@@ -306,7 +306,7 @@ const ResultView: React.FC<Props> = ({
 
       {/* Screen Bottom Footer */}
       <div className="text-center py-6 text-slate-300 text-xs font-mono">
-         Powered by 웅이 연구소
+         Powered by 퓨전요리연구소
       </div>
 
       <style>{`

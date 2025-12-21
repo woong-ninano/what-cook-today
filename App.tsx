@@ -31,7 +31,8 @@ const App: React.FC = () => {
   
   // 편의점 모드 상태 관리
   const [convenienceItems, setConvenienceItems] = useState<{name: string, desc: string}[]>([]);
-  
+  const [convenienceType, setConvenienceType] = useState<'meal' | 'snack'>('meal');
+
   // 레시피 결과 및 히스토리 관리 (인덱스 기반)
   const [recipeHistory, setRecipeHistory] = useState<RecipeResult[]>([]);
   const [currentRecipeIndex, setCurrentRecipeIndex] = useState<number>(-1);
@@ -52,7 +53,8 @@ const App: React.FC = () => {
   const startConvenienceFlow = async () => {
     setIsLoading(true);
     setChoices(prev => ({ ...prev, mode: 'convenience', ingredients: '' }));
-    const items = await fetchConvenienceTopics([]);
+    setConvenienceType('meal'); // 기본은 식사
+    const items = await fetchConvenienceTopics([], 'meal');
     setConvenienceItems(items);
     setStep(Step.ConvenienceSelection);
     setIsLoading(false);
@@ -61,8 +63,17 @@ const App: React.FC = () => {
   const loadMoreConvenienceItems = async () => {
     setIsLoading(true);
     const excludedNames = convenienceItems.map(i => i.name);
-    const newItems = await fetchConvenienceTopics(excludedNames);
+    // 현재 선택된 타입(식사/간식)에 맞춰서 더 불러오기
+    const newItems = await fetchConvenienceTopics(excludedNames, convenienceType);
     setConvenienceItems(prev => [...prev, ...newItems]);
+    setIsLoading(false);
+  };
+
+  const loadSnackItems = async () => {
+    setIsLoading(true);
+    setConvenienceType('snack'); // 간식 모드로 전환
+    const items = await fetchConvenienceTopics([], 'snack');
+    setConvenienceItems(items); // 리스트 교체 (식사 메뉴 -> 간식 메뉴)
     setIsLoading(false);
   };
 
@@ -161,6 +172,7 @@ const App: React.FC = () => {
           items={convenienceItems} 
           onSelect={handleConvenienceSelect} 
           onLoadMore={loadMoreConvenienceItems}
+          onLoadSnack={loadSnackItems}
           onBack={() => setStep(Step.ModeSelection)} 
         />
       );

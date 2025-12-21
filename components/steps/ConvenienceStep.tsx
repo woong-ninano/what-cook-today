@@ -11,10 +11,11 @@ interface Props {
   items: Item[];
   onSelect: (itemName: string) => void;
   onLoadMore: () => void;
+  onLoadSnack: () => void;
   onBack: () => void;
 }
 
-const ConvenienceStep: React.FC<Props> = ({ items, onSelect, onLoadMore, onBack }) => {
+const ConvenienceStep: React.FC<Props> = ({ items, onSelect, onLoadMore, onLoadSnack, onBack }) => {
   return (
     <div className="space-y-6 pt-12 step-transition pb-20">
       <div className="space-y-2">
@@ -37,12 +38,20 @@ const ConvenienceStep: React.FC<Props> = ({ items, onSelect, onLoadMore, onBack 
       </div>
 
       <div className="space-y-3 pt-4">
-        <button
-          onClick={onLoadMore}
-          className="w-full py-5 bg-white border-2 border-[#ff5d01] text-[#ff5d01] text-lg font-bold rounded-2xl shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          🔍 다른 요리 더 보기
-        </button>
+        <div className="flex gap-2">
+            <button
+            onClick={onLoadMore}
+            className="flex-1 py-4 bg-white border-2 border-[#ff5d01] text-[#ff5d01] text-base font-bold rounded-2xl shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+            🔍 더 보기
+            </button>
+            <button
+            onClick={onLoadSnack}
+            className="flex-1 py-4 bg-orange-50 border-2 border-orange-200 text-orange-600 text-base font-bold rounded-2xl shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+            🍪 간식 추천
+            </button>
+        </div>
         
         <button onClick={onBack} className="w-full py-2 text-slate-400 font-bold mt-2">이전 화면으로</button>
       </div>

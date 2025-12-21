@@ -40,7 +40,7 @@ export const fetchSeasonalIngredients = async (excluded: string[] = []) => {
   return JSON.parse(jsonStr).items;
 };
 
-export const fetchConvenienceTopics = async (excluded: string[] = []) => {
+export const fetchConvenienceTopics = async (excluded: string[] = [], category: 'meal' | 'snack' = 'meal') => {
   const ai = getAI();
   
   // 환경 변수 계산 로직
@@ -51,7 +51,7 @@ export const fetchConvenienceTopics = async (excluded: string[] = []) => {
   let timeContext = "";
   if (hour >= 5 && hour < 11) timeContext = "아침 식사나 가벼운 브런치로 좋은";
   else if (hour >= 11 && hour < 14) timeContext = "든든한 점심 식사로 딱인";
-  else if (hour >= 14 && hour < 17) timeContext = "오후 당 충전이나 출출할 때 좋은 간식";
+  else if (hour >= 14 && hour < 17) timeContext = "오후 당 충전이나 출출할 때 좋은";
   else if (hour >= 17 && hour < 22) timeContext = "저녁 식사나 야식으로 훌륭한";
   else timeContext = "늦은 밤 맥주 한 잔과 어울리는 야식/안주";
 
@@ -63,15 +63,30 @@ export const fetchConvenienceTopics = async (excluded: string[] = []) => {
 
   const vibes = [
     "스트레스 풀리는 매운맛", "치즈가 듬뿍 들어간 꾸덕한 맛", 
-    "국물이 끝내주는", "달달하고 당 충전되는", 
-    "칼로리 걱정 덜한 가벼운", "단짠단짠의 정석", 
-    "해장하기 좋은 시원한", "고기 가득한 헤비한"
+    "국물이 끝내주는", "단짠단짠의 정석", 
+    "칼로리 걱정 덜한 가벼운", "토핑이 가득한"
   ];
   const randomVibe = vibes[Math.floor(Math.random() * vibes.length)];
+
+  let categoryPrompt = "";
+  if (category === 'meal') {
+    categoryPrompt = `
+      [중요 조건] 반드시 '식사'가 될 만한 든든한 메뉴 위주로 추천해줘. (라면, 밥, 샌드위치, 떡볶이, 우동 등 메인 요리 조합).
+      단순한 과자나 음료 조합은 제외해줘.
+    `;
+  } else {
+    categoryPrompt = `
+      [중요 조건] '간식'이나 '디저트' 위주로 추천해줘. (과자, 빵, 아이스크림, 음료, 젤리 조합 등).
+      가볍게 먹을 수 있거나 당 충전이 되는 달콤/짭짤한 조합.
+    `;
+  }
 
   const prompt = `
     한국 편의점(GS25, CU, 세븐일레븐)에서 구할 수 있는 재료로 만들 수 있는 '자취생 꿀조합 레시피' 6가지를 추천해줘.
     
+    [카테고리: ${category === 'meal' ? '든든한 식사' : '간식/디저트'}]
+    ${categoryPrompt}
+
     [현재 상황 및 랜덤 조건]
     - 시간대: ${timeContext}
     - 계절감: ${seasonContext}
@@ -79,9 +94,9 @@ export const fetchConvenienceTopics = async (excluded: string[] = []) => {
     
     위 조건들을 반영하여 메뉴를 선정해줘.
     이미 추천한 메뉴들(${excluded.join(', ')})은 제외해줘.
-    마크정식 같은 유명한 조합도 좋지만, 숨겨진 꿀조합이나 창의적인 조합도 섞어서 제안해줘.
+    마크정식, 불닭 조합 같은 유명한 것도 좋지만, 숨겨진 꿀조합이나 신상 조합도 섞어서 제안해줘.
     
-    JSON 포맷으로 { items: [{ name: "메뉴명", desc: "조건에 맞춘 간단한 매력 포인트 설명" }] } 형태로 반환해.
+    JSON 포맷으로 { items: [{ name: "메뉴명", desc: "재료 간략 설명 (예: 불닭+삼각김밥+치즈)" }] } 형태로 반환해.
   `;
   
   try {
@@ -111,10 +126,15 @@ export const fetchConvenienceTopics = async (excluded: string[] = []) => {
     });
     return JSON.parse(response.text || '{"items":[]}').items;
   } catch (e) {
-    return [
-      { name: "불닭 콘치즈 리조또", desc: "매콤함과 고소함의 완벽 조화" },
-      { name: "곰탕 만두 라면죽", desc: "뜨끈하고 든든한 한 끼" }
-    ];
+    return category === 'meal' 
+      ? [
+          { name: "불닭 콘치즈 리조또", desc: "불닭볶음면 + 밥 + 콘치즈" },
+          { name: "곰탕 만두 라면죽", desc: "사리곰탕 + 만두 + 햇반" }
+        ]
+      : [
+          { name: "바나나킥 쉐이크", desc: "바나나우유 + 바나나킥 + 얼음" },
+          { name: "초코 찰떡 토스트", desc: "식빵 + 찰떡아이스 + 초코시럽" }
+        ];
   }
 };
 

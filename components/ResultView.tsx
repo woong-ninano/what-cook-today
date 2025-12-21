@@ -166,12 +166,21 @@ const ResultView: React.FC<Props> = ({
           <h3 className="text-lg font-black text-slate-900">다른 추천 메뉴</h3>
           <div className="grid gap-3">
             {result.similarRecipes.map((recipe, idx) => (
-              <div key={idx} className="bg-orange-50/30 p-6 rounded-3xl border border-orange-100 flex flex-col gap-3">
+              <button 
+                key={idx} 
+                onClick={() => onViewAlternative(recipe.title)}
+                className="w-full text-left bg-orange-50/30 p-6 rounded-3xl border border-orange-100 flex flex-col gap-3 hover:bg-orange-50 active:scale-95 transition-all group"
+              >
                 <div>
-                  <h4 className="text-lg font-black text-orange-900">{recipe.title}</h4>
-                  <p className="text-sm text-orange-700/70 font-medium leading-relaxed">{recipe.reason}</p>
+                  <h4 className="text-lg font-black text-orange-900 flex items-center justify-between">
+                    {recipe.title}
+                    <span className="text-xs bg-white/50 text-[#ff5d01] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      레시피 보기 ➔
+                    </span>
+                  </h4>
+                  <p className="text-sm text-orange-700/70 font-medium leading-relaxed mt-1">{recipe.reason}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

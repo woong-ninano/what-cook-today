@@ -42,12 +42,46 @@ export const fetchSeasonalIngredients = async (excluded: string[] = []) => {
 
 export const fetchConvenienceTopics = async (excluded: string[] = []) => {
   const ai = getAI();
+  
+  // 환경 변수 계산 로직
+  const now = new Date();
+  const hour = now.getHours();
+  const month = now.getMonth() + 1;
+
+  let timeContext = "";
+  if (hour >= 5 && hour < 11) timeContext = "아침 식사나 가벼운 브런치로 좋은";
+  else if (hour >= 11 && hour < 14) timeContext = "든든한 점심 식사로 딱인";
+  else if (hour >= 14 && hour < 17) timeContext = "오후 당 충전이나 출출할 때 좋은 간식";
+  else if (hour >= 17 && hour < 22) timeContext = "저녁 식사나 야식으로 훌륭한";
+  else timeContext = "늦은 밤 맥주 한 잔과 어울리는 야식/안주";
+
+  let seasonContext = "";
+  if (month >= 3 && month <= 5) seasonContext = "봄철 입맛 돋우는";
+  else if (month >= 6 && month <= 8) seasonContext = "무더위를 날려버릴 시원하거나 이열치열";
+  else if (month >= 9 && month <= 11) seasonContext = "쌀쌀한 가을에 어울리는";
+  else seasonContext = "추운 겨울 몸을 녹여줄 따뜻한";
+
+  const vibes = [
+    "스트레스 풀리는 매운맛", "치즈가 듬뿍 들어간 꾸덕한 맛", 
+    "국물이 끝내주는", "달달하고 당 충전되는", 
+    "칼로리 걱정 덜한 가벼운", "단짠단짠의 정석", 
+    "해장하기 좋은 시원한", "고기 가득한 헤비한"
+  ];
+  const randomVibe = vibes[Math.floor(Math.random() * vibes.length)];
+
   const prompt = `
-    한국 편의점(GS25, CU, 세븐일레븐)에서 구할 수 있는 재료로 만들 수 있는 
-    '자취생 꿀조합 레시피' 또는 '편의점 꿀조합' 메뉴 6가지를 추천해줘.
-    이미 추천한 메뉴들(${excluded.join(', ')})은 제외하고 새로운 걸로 추천해줘.
-    유명한 조합(마크정식 등)이나 창의적인 신메뉴 조합을 섞어서 제안해줘.
-    JSON 포맷으로 { items: [{ name: "메뉴명", desc: "간단 설명" }] } 형태로 반환해.
+    한국 편의점(GS25, CU, 세븐일레븐)에서 구할 수 있는 재료로 만들 수 있는 '자취생 꿀조합 레시피' 6가지를 추천해줘.
+    
+    [현재 상황 및 랜덤 조건]
+    - 시간대: ${timeContext}
+    - 계절감: ${seasonContext}
+    - 오늘의 추천 무드: "${randomVibe}" 스타일
+    
+    위 조건들을 반영하여 메뉴를 선정해줘.
+    이미 추천한 메뉴들(${excluded.join(', ')})은 제외해줘.
+    마크정식 같은 유명한 조합도 좋지만, 숨겨진 꿀조합이나 창의적인 조합도 섞어서 제안해줘.
+    
+    JSON 포맷으로 { items: [{ name: "메뉴명", desc: "조건에 맞춘 간단한 매력 포인트 설명" }] } 형태로 반환해.
   `;
   
   try {

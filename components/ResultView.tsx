@@ -27,26 +27,31 @@ const ResultView: React.FC<Props> = ({
 }) => {
   const [tab, setTab] = useState<'easy' | 'gourmet'>('easy');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [rating, setRating] = useState<number>(0);
+  const [feedback, setFeedback] = useState<'success' | 'fail' | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Mock Data: 실제 DB 연동 시 서버에서 가져올 값
+  const mockDownloadCount = Math.floor(Math.random() * 500) + 100; // 100~600명 랜덤
 
   const handleDownloadPDF = async () => {
     if (!contentRef.current) return;
     setIsDownloading(true);
 
     try {
-      // 1. Capture the DOM element as a canvas
+      // --- [Server Logic Placeholder] ---
+      // 여기에 DB로 '다운로드 카운트 증가' 요청을 보냅니다.
+      console.log(`[Analytics] '${result.dishName}' PDF Downloaded.`);
+      // ----------------------------------
+
       const canvas = await html2canvas(contentRef.current, {
-        scale: 2, // High resolution
-        useCORS: true, // Handle cross-origin images
+        scale: 2, 
+        useCORS: true, 
         allowTaint: true,
         backgroundColor: '#ffffff'
       });
 
-      // 2. Convert canvas to image data
       const imgData = canvas.toDataURL('image/png');
-
-      // 3. Create PDF with the same dimensions as the captured content (in mm)
-      // Conversion factor: 1 px = 0.264583 mm
       const imgWidth = canvas.width * 0.264583;
       const imgHeight = canvas.height * 0.264583;
 
@@ -67,13 +72,24 @@ const ResultView: React.FC<Props> = ({
     }
   };
 
+  const handleRating = (score: number) => {
+    setRating(score);
+    // --- [Server Logic Placeholder] ---
+  };
+
   return (
-    <div className="animate-fadeIn space-y-8 pb-20 pt-10">
+    <div className="animate-fadeIn space-y-8 pb-10 pt-10">
       {/* Content to be Captured */}
       <div ref={contentRef} className="bg-white p-4 rounded-[32px]">
         <div className="text-center space-y-6">
-          <div className="inline-block px-4 py-1.5 bg-orange-50 text-[#ff5d01] text-xs font-black rounded-full uppercase tracking-widest">
-            Recipe Completed
+          <div className="flex justify-center gap-2 items-center">
+            <div className="inline-block px-4 py-1.5 bg-orange-50 text-[#ff5d01] text-xs font-black rounded-full uppercase tracking-widest">
+              Recipe Completed
+            </div>
+            {/* Mock Popularity Badge */}
+            <div className="inline-block px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1">
+              <span>🔥</span> {mockDownloadCount}명이 저장함
+            </div>
           </div>
           
           {result.imageUrl && (
@@ -112,22 +128,28 @@ const ResultView: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Tab Selection (Visual only, Logic below) */}
-        <div className="bg-[#F2F4F6] p-1.5 rounded-2xl flex mt-8 mb-6 border border-slate-100">
-          <div
-            className={`flex-1 py-3 text-center text-sm font-black rounded-xl ${
+        {/* Tab Selection (Functional & Capturable) */}
+        {/* data-html2canvas-ignore="true"를 추가하면 PDF 저장 시 이 버튼 영역은 제외됩니다. */}
+        <div 
+          className="bg-[#F2F4F6] p-1.5 rounded-2xl flex mt-8 mb-6 border border-slate-100"
+          data-html2canvas-ignore="true"
+        >
+          <button
+            onClick={() => setTab('easy')}
+            className={`flex-1 py-3 text-center text-sm font-black rounded-xl transition-all ${
               tab === 'easy' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-400'
             }`}
           >
             ⚡ 간편 레시피
-          </div>
-          <div
-            className={`flex-1 py-3 text-center text-sm font-black rounded-xl ${
+          </button>
+          <button
+            onClick={() => setTab('gourmet')}
+            className={`flex-1 py-3 text-center text-sm font-black rounded-xl transition-all ${
               tab === 'gourmet' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-400'
             }`}
           >
             ✨ 꿀팁 & 킥
-          </div>
+          </button>
         </div>
 
         <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-50">
@@ -159,41 +181,72 @@ const ResultView: React.FC<Props> = ({
             <h3 className="text-lg font-black text-slate-900">참고 링크</h3>
             <div className="flex flex-col gap-2">
               {result.referenceLinks.map((link, idx) => (
-                <div 
+                <a 
                   key={idx} 
-                  className="w-full p-4 bg-slate-50 border border-slate-100 text-slate-600 text-sm font-bold rounded-2xl flex justify-between items-center"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full p-4 bg-slate-50 border border-slate-100 text-slate-600 text-sm font-bold rounded-2xl flex justify-between items-center hover:bg-slate-100 transition-colors"
                 >
                   <span>🔗 {link.title}</span>
-                </div>
+                  <span className="text-slate-400">↗</span>
+                </a>
               ))}
             </div>
           </div>
         )}
+        
+        {/* PDF Branding Footer */}
         <div className="text-center mt-8 text-slate-300 text-xs font-mono">
-           Powered by 웅아! 오늘 뭐 해먹지? AI Chef
+           Powered by 웅이 연구소
         </div>
       </div>
       {/* End of Capture Ref */}
 
+      
+      {/* Community Feedback Section */}
+      <div className="mx-4 mb-6 bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 space-y-4">
+        <div className="text-center space-y-1">
+          <h3 className="text-lg font-black text-slate-900">이 레시피 어떠셨나요?</h3>
+          <p className="text-xs text-slate-400">평가를 남겨주시면 데이터가 쌓여요! (준비중)</p>
+        </div>
+        
+        {/* Star Rating */}
+        <div className="flex justify-center gap-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              onClick={() => handleRating(star)}
+              className={`text-3xl transition-transform active:scale-125 ${star <= rating ? 'grayscale-0' : 'grayscale opacity-30'}`}
+            >
+              ⭐
+            </button>
+          ))}
+        </div>
 
-      {/* Control Buttons (Not Captured) */}
-      <div className="bg-[#F2F4F6] rounded-2xl p-1.5 flex mb-4 sticky top-4 z-30 shadow-md mx-4">
-        <button
-          onClick={() => setTab('easy')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-            tab === 'easy' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-500'
-          }`}
-        >
-          ⚡ 간편
-        </button>
-        <button
-          onClick={() => setTab('gourmet')}
-          className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-            tab === 'gourmet' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-500'
-          }`}
-        >
-          ✨ 꿀팁
-        </button>
+        {/* Success/Fail Vote */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFeedback('success')}
+            className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+              feedback === 'success' 
+              ? 'border-green-500 bg-green-50 text-green-600' 
+              : 'border-slate-100 text-slate-400 hover:border-green-200 hover:text-green-500'
+            }`}
+          >
+            😋 성공했어요!
+          </button>
+          <button
+            onClick={() => setFeedback('fail')}
+            className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+              feedback === 'fail' 
+              ? 'border-red-500 bg-red-50 text-red-600' 
+              : 'border-slate-100 text-slate-400 hover:border-red-200 hover:text-red-500'
+            }`}
+          >
+            🥲 망했어요..
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 px-4">
@@ -222,7 +275,7 @@ const ResultView: React.FC<Props> = ({
           className="w-full py-5 bg-slate-800 text-white font-bold text-lg rounded-[24px] shadow-lg shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
         >
           {isDownloading ? (
-            <>⏳ 저장 중...</>
+            <>⏳ 저장 및 집계 중...</>
           ) : (
             <>📄 레시피 PDF로 저장</>
           )}
@@ -242,22 +295,9 @@ const ResultView: React.FC<Props> = ({
         </button>
       </div>
 
-      <div className="px-4 pb-4">
-        <h3 className="text-lg font-black text-slate-900 mb-2">링크 바로가기</h3>
-         <div className="flex flex-col gap-2">
-            {result.referenceLinks && result.referenceLinks.map((link, idx) => (
-              <a 
-                key={idx} 
-                href={link.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="w-full p-4 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-2xl hover:bg-slate-50 transition-all flex justify-between items-center"
-              >
-                <span>🔗 {link.title}</span>
-                <span className="text-slate-300">➔</span>
-              </a>
-            ))}
-          </div>
+      {/* Screen Bottom Footer */}
+      <div className="text-center py-6 text-slate-300 text-xs font-mono">
+         Powered by 웅이 연구소
       </div>
 
       <style>{`

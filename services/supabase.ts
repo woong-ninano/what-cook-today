@@ -75,7 +75,7 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
 
 export const fetchCommunityRecipes = async (
   search: string, 
-  sortBy: 'latest' | 'popular' | 'rating'
+  sortBy: 'latest' | 'rating' | 'success' | 'comments'
 ): Promise<RecipeResult[]> => {
   if (!supabase) return [];
 
@@ -90,16 +90,18 @@ export const fetchCommunityRecipes = async (
   }
 
   // 정렬 조건
-  if (sortBy === 'popular') {
-    query = query.order('download_count', { ascending: false });
-  } else if (sortBy === 'rating') {
+  if (sortBy === 'rating') {
     query = query.order('rating_sum', { ascending: false });
+  } else if (sortBy === 'success') {
+    // 성공 투표순 (Vote Success)
+    query = query.order('vote_success', { ascending: false });
   } else {
-    // latest
+    // 'latest' 또는 'comments'일 경우 기본적으로 최신순으로 가져온 뒤 처리
+    // (Supabase JS에서 relation count 정렬은 복잡하므로 comments는 메모리 정렬 사용)
     query = query.order('created_at', { ascending: false });
   }
 
-  // 최대 50개 제한 (Pagination은 추후 구현)
+  // 최대 50개 제한
   query = query.limit(50);
 
   const { data, error } = await query;
@@ -110,7 +112,7 @@ export const fetchCommunityRecipes = async (
   }
 
   // DB 데이터를 RecipeResult 형태로 매핑
-  return data.map((row: any) => ({
+  const formattedData = data.map((row: any) => ({
     ...row.full_json,
     id: row.id,
     created_at: row.created_at,
@@ -122,6 +124,13 @@ export const fetchCommunityRecipes = async (
     // comments 배열의 첫 번째 요소의 count 값을 가져옴 (Supabase 응답 구조 대응)
     comment_count: row.comments?.[0]?.count || 0
   }));
+
+  // 댓글순일 경우 클라이언트 사이드 정렬 수행
+  if (sortBy === 'comments') {
+    formattedData.sort((a: RecipeResult, b: RecipeResult) => (b.comment_count || 0) - (a.comment_count || 0));
+  }
+
+  return formattedData;
 };
 
 export const incrementDownloadCount = async (id: number) => {

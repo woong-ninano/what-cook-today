@@ -13,7 +13,8 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   const [recipes, setRecipes] = useState<RecipeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'rating'>('latest');
+  // 정렬 상태 타입 변경
+  const [sortBy, setSortBy] = useState<'latest' | 'rating' | 'success' | 'comments'>('latest');
 
   const loadRecipes = async () => {
     setLoading(true);
@@ -92,7 +93,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
           </button>
         </form>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
           <button
             onClick={() => setSortBy('latest')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
@@ -102,20 +103,28 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
             최신순
           </button>
           <button
-            onClick={() => setSortBy('popular')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-              sortBy === 'popular' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-400 hover:text-slate-500'
-            }`}
-          >
-            인기순 (저장)
-          </button>
-          <button
             onClick={() => setSortBy('rating')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
               sortBy === 'rating' ? 'bg-white text-yellow-500 shadow-sm' : 'text-slate-400 hover:text-slate-500'
             }`}
           >
             별점순
+          </button>
+          <button
+            onClick={() => setSortBy('success')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+              sortBy === 'success' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-400 hover:text-slate-500'
+            }`}
+          >
+            성공순
+          </button>
+          <button
+            onClick={() => setSortBy('comments')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+              sortBy === 'comments' ? 'bg-white text-blue-500 shadow-sm' : 'text-slate-400 hover:text-slate-500'
+            }`}
+          >
+            댓글순
           </button>
         </div>
       </div>

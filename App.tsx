@@ -12,12 +12,16 @@ import PreferencesStep from './components/steps/PreferencesStep.tsx';
 import EnvironmentStep from './components/steps/EnvironmentStep.tsx';
 import LoadingStep from './components/steps/LoadingStep.tsx';
 import ResultView from './components/ResultView.tsx';
+import CommunityView from './components/CommunityView.tsx';
 import { generateRecipe, fetchSuggestions, fetchSeasonalIngredients, fetchConvenienceTopics, generateDishImage } from './services/gemini.ts';
 import { saveRecipeToDB, supabase } from './services/supabase.ts';
 import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>(Step.Welcome);
+  // Navigation State: 'home' is standard flow, 'community' is community view
+  const [activeTab, setActiveTab] = useState<'home' | 'community'>('home');
+  
   const [choices, setChoices] = useState<UserChoices>({
     mode: 'fridge',
     ingredients: '',
@@ -66,6 +70,7 @@ const App: React.FC = () => {
         setRecipeHistory(JSON.parse(savedHistory));
         setCurrentRecipeIndex(parseInt(savedIndex, 10));
         setStep(Step.Result); // 결과 화면으로 복귀
+        setActiveTab('home');
         // 복구 후 삭제
         sessionStorage.removeItem('temp_recipe_history');
         sessionStorage.removeItem('temp_recipe_index');
@@ -164,16 +169,23 @@ const App: React.FC = () => {
 
       // Supabase DB에 저장
       let dbId: number | undefined = undefined;
+      let createdAt: string | undefined = undefined;
       try {
         const savedData = await saveRecipeToDB({ ...recipe, imageUrl });
         if (savedData) {
           dbId = savedData.id;
+          createdAt = savedData.created_at;
         }
       } catch (dbError) {
         console.error("Failed to save to DB:", dbError);
       }
 
-      const newResult = { ...recipe, imageUrl, id: dbId };
+      const newResult = { 
+        ...recipe, 
+        imageUrl, 
+        id: dbId, 
+        created_at: createdAt 
+      };
 
       setRecipeHistory(prev => {
         const newHistory = prev.slice(0, currentRecipeIndex + 1);
@@ -205,9 +217,24 @@ const App: React.FC = () => {
     setRecipeHistory([]);
     setCurrentRecipeIndex(-1);
     setStep(Step.Welcome);
+    setActiveTab('home');
   };
 
-  const renderStep = () => {
+  const handleCommunityRecipeSelect = (recipe: RecipeResult) => {
+    // 커뮤니티에서 레시피 선택 시, 히스토리 끝에 추가하고 보여줌
+    // 단, 재생성/저장 기능 제한은 ResultView 내부 로직에 따름 (이미 DB에 있으므로 저장됨 표시)
+    setRecipeHistory([recipe]);
+    setCurrentRecipeIndex(0);
+    setStep(Step.Result);
+    setActiveTab('home'); // 뷰를 홈(레시피 뷰어)로 전환
+  };
+
+  const renderContent = () => {
+    if (activeTab === 'community') {
+      return <CommunityView onSelectRecipe={handleCommunityRecipeSelect} />;
+    }
+
+    // Home Tab Flow
     if (isLoading) return <LoadingStep customMessage="데이터를 불러오고 있어요..." />;
 
     switch (step) {
@@ -257,9 +284,35 @@ const App: React.FC = () => {
   return (
     <div className="min-h-dvh bg-[#F2F4F6] flex justify-center overflow-x-hidden">
       <div className="w-full max-w-lg bg-white min-h-dvh flex flex-col relative toss-card overflow-hidden">
-        <main className="flex-1 px-6 pb-12">
-          {renderStep()}
+        
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          {renderContent()}
         </main>
+
+        {/* Bottom Navigation */}
+        <nav className="h-[70px] bg-white border-t border-slate-100 flex items-center justify-around fixed bottom-0 w-full max-w-lg z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+          <button 
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'home' ? 'text-[#ff5d01]' : 'text-slate-300'}`}
+          >
+            <span className="text-2xl">🍳</span>
+            <span className="text-[10px] font-bold">레시피 생성</span>
+          </button>
+          
+          <div className="w-[1px] h-6 bg-slate-100"></div>
+
+          <button 
+            onClick={() => {
+              setActiveTab('community');
+              setStep(Step.Community); // 탭 전환 시 스텝 변경 (렌더링 트리거)
+            }}
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center transition-colors ${activeTab === 'community' ? 'text-[#ff5d01]' : 'text-slate-300'}`}
+          >
+            <span className="text-2xl">👥</span>
+            <span className="text-[10px] font-bold">커뮤니티</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

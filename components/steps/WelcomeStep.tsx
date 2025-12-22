@@ -10,6 +10,17 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
 
   const updateHistory = [
     {
+      version: "v1.4.0",
+      tag: "Feature",
+      date: "2025.12.24",
+      changes: [
+        "👥 커뮤니티 기능 오픈! 다른 사람들의 레시피를 구경하세요.",
+        "🔍 요리 검색 및 필터(최신/인기/별점순) 기능 추가",
+        "💾 레시피 생성 시 DB 자동 저장 시스템 강화",
+        "📱 하단 네비게이션 바로 홈/커뮤니티 간편 이동"
+      ]
+    },
+    {
       version: "v1.3.0",
       tag: "Major",
       date: "2025.12.23",
@@ -150,7 +161,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               onClick={() => setShowUpdateModal(true)}
               className="text-[10px] text-slate-300 font-bold hover:text-[#ff5d01] transition-colors underline decoration-slate-200 underline-offset-2"
             >
-              v1.3.0 Update Note
+              v1.4.0 Update Note
             </button>
           </div>
         </div>
@@ -158,12 +169,12 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
 
       {/* Update History Modal */}
       {showUpdateModal && (
-        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ margin: '-24px -24px -48px -24px' }}>
+        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ margin: '-24px -24px -90px -24px' }}>
           <div 
             className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-fadeIn"
             onClick={() => setShowUpdateModal(false)}
           ></div>
-          <div className="bg-white w-full h-[85vh] rounded-t-[32px] p-8 pb-10 shadow-2xl relative z-10 animate-[slideUp_0.3s_ease-out_forwards] flex flex-col">
+          <div className="bg-white w-full h-[85vh] rounded-t-[32px] p-8 pb-20 shadow-2xl relative z-10 animate-[slideUp_0.3s_ease-out_forwards] flex flex-col">
             <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-6 shrink-0"></div>
             
             <div className="flex items-center justify-between mb-6 shrink-0">
@@ -198,6 +209,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
                           update.tag === 'NEW' || update.tag === 'Speed' ? 'bg-orange-100 text-[#ff5d01]' : 
                           update.tag === 'Major' ? 'bg-purple-100 text-purple-600' :
+                          update.tag === 'Feature' ? 'bg-blue-100 text-blue-600' :
                           'bg-slate-100 text-slate-500'
                         }`}>
                           {update.tag}

@@ -73,6 +73,52 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
   }
 };
 
+export const fetchCommunityRecipes = async (
+  search: string, 
+  sortBy: 'latest' | 'popular' | 'rating'
+): Promise<RecipeResult[]> => {
+  if (!supabase) return [];
+
+  let query = supabase
+    .from('recipes')
+    .select('*');
+
+  // 검색 필터
+  if (search) {
+    query = query.ilike('dish_name', `%${search}%`);
+  }
+
+  // 정렬 조건
+  if (sortBy === 'popular') {
+    query = query.order('download_count', { ascending: false });
+  } else if (sortBy === 'rating') {
+    query = query.order('rating_sum', { ascending: false });
+  } else {
+    // latest
+    query = query.order('created_at', { ascending: false });
+  }
+
+  // 최대 50개 제한 (Pagination은 추후 구현)
+  query = query.limit(50);
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching community recipes:', error);
+    return [];
+  }
+
+  // DB 데이터를 RecipeResult 형태로 매핑
+  return data.map((row: any) => ({
+    ...row.full_json,
+    id: row.id,
+    created_at: row.created_at,
+    rating_sum: row.rating_sum,
+    rating_count: row.rating_count,
+    download_count: row.download_count
+  }));
+};
+
 export const incrementDownloadCount = async (id: number) => {
   if (!id || !supabase) return;
   

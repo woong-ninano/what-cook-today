@@ -30,6 +30,10 @@ export interface RecipeResult {
   similarRecipes: SimilarRecipe[];
   referenceLinks: ReferenceLink[];
   imageUrl?: string;
+  created_at?: string; // DB created_at
+  rating_sum?: number;
+  rating_count?: number;
+  download_count?: number;
 }
 
 export interface Comment {
@@ -46,11 +50,12 @@ export enum Step {
   ModeSelection = 1,
   Ingredients = 2,
   SeasonalSelection = 3,
-  ConvenienceSelection = 4, // New Step
+  ConvenienceSelection = 4,
   CuisineSelection = 5,
   Suggestions = 6,
   Preferences = 7,
   Environment = 8,
   Loading = 9,
-  Result = 10
+  Result = 10,
+  Community = 11 // New Step for Community View
 }

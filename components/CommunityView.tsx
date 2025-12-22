@@ -168,18 +168,19 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
                     </p>
                   </div>
                   
+                  {/* Stats: 별점 -> 성공 -> 댓글 -> 다운로드 */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-400">
                     <span className="flex items-center gap-1 text-yellow-500">
                       ⭐ {getStarAverage(recipe.rating_sum, recipe.rating_count)}
                     </span>
-                    <span className="flex items-center gap-1 text-slate-500">
-                      💬 {recipe.comment_count || 0}
-                    </span>
                     <span className="flex items-center gap-1 text-green-600">
                       😋 {recipe.vote_success || 0}
                     </span>
-                    <span className="flex items-center gap-1 text-red-500">
-                      🥲 {recipe.vote_fail || 0}
+                    <span className="flex items-center gap-1 text-blue-500">
+                      💬 {recipe.comment_count || 0}
+                    </span>
+                    <span className="flex items-center gap-1 text-slate-400">
+                      💾 {recipe.download_count || 0}
                     </span>
                     <span className="ml-auto text-[10px] bg-slate-50 px-1.5 py-0.5 rounded text-slate-300 font-medium">
                       {new Date(recipe.created_at || '').toLocaleDateString().slice(2)}

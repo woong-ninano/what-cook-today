@@ -89,15 +89,16 @@ export const fetchCommunityRecipes = async (
     query = query.ilike('dish_name', `%${search}%`);
   }
 
-  // 정렬 조건
+  // 정렬 조건 (DB Fetch 전략)
   if (sortBy === 'rating') {
+    // 별점순의 경우, DB에서 총점(rating_sum) 순으로 가져와 후보군을 확보한 뒤,
+    // 클라이언트에서 '평균 점수'로 재정렬합니다.
     query = query.order('rating_sum', { ascending: false });
   } else if (sortBy === 'success') {
     // 성공 투표순 (Vote Success)
     query = query.order('vote_success', { ascending: false });
   } else {
     // 'latest' 또는 'comments'일 경우 기본적으로 최신순으로 가져온 뒤 처리
-    // (Supabase JS에서 relation count 정렬은 복잡하므로 comments는 메모리 정렬 사용)
     query = query.order('created_at', { ascending: false });
   }
 
@@ -125,9 +126,22 @@ export const fetchCommunityRecipes = async (
     comment_count: row.comments?.[0]?.count || 0
   }));
 
-  // 댓글순일 경우 클라이언트 사이드 정렬 수행
+  // 클라이언트 사이드 정렬 수행
   if (sortBy === 'comments') {
+    // 댓글순 정렬
     formattedData.sort((a: RecipeResult, b: RecipeResult) => (b.comment_count || 0) - (a.comment_count || 0));
+  } else if (sortBy === 'rating') {
+    // 별점 평균순 정렬 (평균 = sum / count)
+    formattedData.sort((a: RecipeResult, b: RecipeResult) => {
+      const avgA = (a.rating_count && a.rating_count > 0) ? (a.rating_sum || 0) / a.rating_count : 0;
+      const avgB = (b.rating_count && b.rating_count > 0) ? (b.rating_sum || 0) / b.rating_count : 0;
+      
+      if (avgB !== avgA) {
+        return avgB - avgA; // 평균 점수 높은 순
+      }
+      // 평균이 같으면 평가 참여자 수 많은 순
+      return (b.rating_count || 0) - (a.rating_count || 0);
+    });
   }
 
   return formattedData;

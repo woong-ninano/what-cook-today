@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Step, UserChoices, RecipeResult } from './types.ts';
 import WelcomeStep from './components/steps/WelcomeStep.tsx';
 import ModeSelectionStep from './components/steps/ModeSelectionStep.tsx';
@@ -13,7 +13,8 @@ import EnvironmentStep from './components/steps/EnvironmentStep.tsx';
 import LoadingStep from './components/steps/LoadingStep.tsx';
 import ResultView from './components/ResultView.tsx';
 import { generateRecipe, fetchSuggestions, fetchSeasonalIngredients, fetchConvenienceTopics, generateDishImage } from './services/gemini.ts';
-import { saveRecipeToDB } from './services/supabase.ts';
+import { saveRecipeToDB, supabase } from './services/supabase.ts';
+import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>(Step.Welcome);
@@ -34,13 +35,57 @@ const App: React.FC = () => {
   const [convenienceItems, setConvenienceItems] = useState<{name: string, desc: string}[]>([]);
   const [convenienceType, setConvenienceType] = useState<'meal' | 'snack'>('meal');
 
-  // 레시피 결과 및 히스토리 관리 (인덱스 기반)
+  // 레시피 결과 및 히스토리 관리
   const [recipeHistory, setRecipeHistory] = useState<RecipeResult[]>([]);
   const [currentRecipeIndex, setCurrentRecipeIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 현재 보여줄 결과 도출
+  // 사용자 인증 상태
+  const [user, setUser] = useState<User | null>(null);
+
+  // 초기 로드: 세션 체크 및 데이터 복구 (OAuth 리다이렉트 대응)
+  useEffect(() => {
+    if (!supabase) return;
+
+    // 1. 세션 확인
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // 2. Auth 상태 변경 리스너
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    // 3. OAuth 리다이렉트 후 레시피 데이터 복구
+    const savedHistory = sessionStorage.getItem('temp_recipe_history');
+    const savedIndex = sessionStorage.getItem('temp_recipe_index');
+    
+    if (savedHistory && savedIndex) {
+      try {
+        setRecipeHistory(JSON.parse(savedHistory));
+        setCurrentRecipeIndex(parseInt(savedIndex, 10));
+        setStep(Step.Result); // 결과 화면으로 복귀
+        // 복구 후 삭제
+        sessionStorage.removeItem('temp_recipe_history');
+        sessionStorage.removeItem('temp_recipe_index');
+      } catch (e) {
+        console.error("Failed to restore recipe history", e);
+      }
+    }
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const result = currentRecipeIndex >= 0 ? recipeHistory[currentRecipeIndex] : null;
+
+  // 로그인 전 현재 작업중인 레시피를 세션스토리지에 저장
+  const saveContextForLogin = () => {
+    if (recipeHistory.length > 0) {
+      sessionStorage.setItem('temp_recipe_history', JSON.stringify(recipeHistory));
+      sessionStorage.setItem('temp_recipe_index', currentRecipeIndex.toString());
+    }
+  };
 
   const startSeasonalFlow = async () => {
     setIsLoading(true);
@@ -64,7 +109,6 @@ const App: React.FC = () => {
   const loadMoreConvenienceItems = async () => {
     setIsLoading(true);
     const excludedNames = convenienceItems.map(i => i.name);
-    // 현재 선택된 타입(식사/간식)에 맞춰서 더 불러오기
     const newItems = await fetchConvenienceTopics(excludedNames, convenienceType);
     setConvenienceItems(prev => [...prev, ...newItems]);
     setIsLoading(false);
@@ -72,9 +116,9 @@ const App: React.FC = () => {
 
   const loadSnackItems = async () => {
     setIsLoading(true);
-    setConvenienceType('snack'); // 간식 모드로 전환
+    setConvenienceType('snack');
     const items = await fetchConvenienceTopics([], 'snack');
-    setConvenienceItems(items); // 리스트 교체 (식사 메뉴 -> 간식 메뉴)
+    setConvenienceItems(items);
     setIsLoading(false);
   };
 
@@ -118,13 +162,12 @@ const App: React.FC = () => {
         imageUrl = await generateDishImage(recipe.dishName);
       }
 
-      // Supabase DB에 저장 (비동기 처리하지만 UI를 막지 않음)
+      // Supabase DB에 저장
       let dbId: number | undefined = undefined;
       try {
         const savedData = await saveRecipeToDB({ ...recipe, imageUrl });
         if (savedData) {
           dbId = savedData.id;
-          console.log("Recipe saved to DB with ID:", dbId);
         }
       } catch (dbError) {
         console.error("Failed to save to DB:", dbError);
@@ -132,7 +175,6 @@ const App: React.FC = () => {
 
       const newResult = { ...recipe, imageUrl, id: dbId };
 
-      // 새로운 레시피 생성 시, 현재 인덱스 이후의 기록(미래)은 날리고 새로운 것을 추가
       setRecipeHistory(prev => {
         const newHistory = prev.slice(0, currentRecipeIndex + 1);
         return [...newHistory, newResult];
@@ -196,7 +238,9 @@ const App: React.FC = () => {
       case Step.Loading: return <LoadingStep />;
       case Step.Result: return result ? (
         <ResultView 
-          result={result} 
+          result={result}
+          user={user}
+          onSaveContext={saveContextForLogin}
           canGoBack={currentRecipeIndex > 0}
           canGoForward={currentRecipeIndex < recipeHistory.length - 1}
           onReset={handleReset} 

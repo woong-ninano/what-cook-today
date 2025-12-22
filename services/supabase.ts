@@ -1,20 +1,49 @@
 
-import { createClient } from '@supabase/supabase-js';
-import { RecipeResult } from '../types';
+import { createClient, User } from '@supabase/supabase-js';
+import { RecipeResult, Comment } from '../types';
 
-// 환경 변수 가져오기 (설정되지 않았을 경우 undefined)
+// 환경 변수 가져오기
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-// URL과 Key가 유효한 경우에만 클라이언트 생성
-// 환경 변수가 없으면 null을 할당하여 앱이 크래시되지 않고 로컬 모드로 동작하게 함
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
-// 1. 레시피 저장하기
+/**
+ * AUTHENTICATION
+ */
+export const signInWithGoogle = async () => {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin, // 로그인 후 현재 페이지로 복귀
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  });
+  if (error) console.error('Login failed:', error);
+};
+
+export const signOut = async () => {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+};
+
+export const getCurrentUser = async (): Promise<User | null> => {
+  if (!supabase) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user || null;
+};
+
+/**
+ * DATABASE - RECIPES
+ */
 export const saveRecipeToDB = async (recipe: RecipeResult) => {
-  if (!supabase) return null; // Supabase가 연결되지 않았으면 저장하지 않음
+  if (!supabase) return null;
 
   try {
     const { data, error } = await supabase
@@ -44,7 +73,6 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
   }
 };
 
-// 2. 다운로드 수 증가
 export const incrementDownloadCount = async (id: number) => {
   if (!id || !supabase) return;
   
@@ -66,7 +94,6 @@ export const incrementDownloadCount = async (id: number) => {
   }
 };
 
-// 3. 별점 주기
 export const updateRating = async (id: number, score: number) => {
   if (!id || !supabase) return;
 
@@ -91,7 +118,6 @@ export const updateRating = async (id: number, score: number) => {
   }
 };
 
-// 4. 성공/실패 투표
 export const updateVote = async (id: number, type: 'success' | 'fail') => {
   if (!id || !supabase) return;
 
@@ -113,4 +139,46 @@ export const updateVote = async (id: number, type: 'success' | 'fail') => {
   } catch (err) {
     console.error('Error updating vote:', err);
   }
+};
+
+/**
+ * DATABASE - COMMENTS
+ */
+export const fetchComments = async (recipeId: number): Promise<Comment[]> => {
+  if (!supabase || !recipeId) return [];
+  
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('recipe_id', recipeId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+  return data as Comment[];
+};
+
+export const addComment = async (recipeId: number, userId: string, userEmail: string, content: string): Promise<Comment | null> => {
+  if (!supabase || !recipeId || !userId) return null;
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert([
+      {
+        recipe_id: recipeId,
+        user_id: userId,
+        user_email: userEmail,
+        content: content
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding comment:', error);
+    return null;
+  }
+  return data as Comment;
 };

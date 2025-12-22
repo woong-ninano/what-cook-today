@@ -32,6 +32,15 @@ export interface RecipeResult {
   imageUrl?: string;
 }
 
+export interface Comment {
+  id: number;
+  recipe_id: number;
+  user_id: string;
+  user_email: string;
+  content: string;
+  created_at: string;
+}
+
 export enum Step {
   Welcome = 0,
   ModeSelection = 1,

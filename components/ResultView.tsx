@@ -1,12 +1,22 @@
 
-import React, { useState, useRef } from 'react';
-import { RecipeResult } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { RecipeResult, Comment } from '../types';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { incrementDownloadCount, updateRating, updateVote } from '../services/supabase.ts';
+import { 
+  incrementDownloadCount, 
+  updateRating, 
+  updateVote, 
+  signInWithGoogle, 
+  signOut, 
+  fetchComments, 
+  addComment 
+} from '../services/supabase.ts';
+import { User } from '@supabase/supabase-js';
 
 interface Props {
   result: RecipeResult;
+  user: User | null;
   canGoBack: boolean;
   canGoForward: boolean;
   onReset: () => void;
@@ -14,36 +24,59 @@ interface Props {
   onViewAlternative: (dishName: string) => void;
   onGoBack: () => void;
   onGoForward: () => void;
+  onSaveContext: () => void;
 }
 
 const ResultView: React.FC<Props> = ({ 
   result, 
+  user,
   canGoBack, 
   canGoForward, 
   onReset, 
   onRegenerate, 
   onViewAlternative, 
   onGoBack, 
-  onGoForward 
+  onGoForward,
+  onSaveContext
 }) => {
   const [tab, setTab] = useState<'easy' | 'gourmet'>('easy');
   const [isDownloading, setIsDownloading] = useState(false);
   const [rating, setRating] = useState<number>(0);
   const [feedback, setFeedback] = useState<'success' | 'fail' | null>(null);
+  
+  // Comments State
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // DB에 저장된 ID가 없으면 로컬 전용으로 간주
   const isDBSaved = !!result.id;
+
+  // Load comments when recipe changes
+  useEffect(() => {
+    if (result.id) {
+      fetchComments(result.id).then(setComments);
+    } else {
+      setComments([]);
+    }
+    setRating(0);
+    setFeedback(null);
+  }, [result.id]);
+
+  const handleLogin = async () => {
+    // 현재 레시피 상태 저장 후 로그인
+    onSaveContext();
+    await signInWithGoogle();
+  };
 
   const handleDownloadPDF = async () => {
     if (!contentRef.current) return;
     setIsDownloading(true);
 
     try {
-      // 실제 DB 다운로드 카운트 증가
       if (result.id) {
         await incrementDownloadCount(result.id);
-        console.log(`[Analytics] '${result.dishName}' (ID: ${result.id}) PDF Download Recorded.`);
       }
 
       const canvas = await html2canvas(contentRef.current, {
@@ -75,24 +108,72 @@ const ResultView: React.FC<Props> = ({
   };
 
   const handleRating = async (score: number) => {
+    if (!user) {
+      if (confirm("별점을 남기려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
+        handleLogin();
+      }
+      return;
+    }
+
     setRating(score);
     if (result.id) {
       await updateRating(result.id, score);
-      console.log(`[Analytics] Rated ${score} stars for ID: ${result.id}`);
     }
   };
 
   const handleFeedback = async (type: 'success' | 'fail') => {
-    if (feedback) return; // 이미 투표함
+    if (!user) {
+      if (confirm("투표를 하려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
+        handleLogin();
+      }
+      return;
+    }
+
+    if (feedback) return;
     setFeedback(type);
     if (result.id) {
       await updateVote(result.id, type);
-      console.log(`[Analytics] Voted ${type} for ID: ${result.id}`);
     }
+  };
+
+  const handleSubmitComment = async () => {
+    if (!user) {
+      if (confirm("댓글을 작성하려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
+        handleLogin();
+      }
+      return;
+    }
+    if (!newComment.trim() || !result.id) return;
+
+    setIsSubmittingComment(true);
+    const added = await addComment(result.id, user.id, user.email || '익명', newComment);
+    if (added) {
+      setComments(prev => [added, ...prev]);
+      setNewComment('');
+    } else {
+      alert("댓글 작성에 실패했습니다.");
+    }
+    setIsSubmittingComment(false);
   };
 
   return (
     <div className="animate-fadeIn space-y-8 pb-10 pt-10">
+      
+      {/* Login Status Bar */}
+      <div className="flex justify-between items-center px-2">
+        {user ? (
+          <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            {user.email?.split('@')[0]}님 환영합니다
+            <button onClick={signOut} className="text-slate-400 underline ml-2">로그아웃</button>
+          </div>
+        ) : (
+          <div className="text-xs text-slate-400 font-bold">
+            로그인하고 커뮤니티에 참여해보세요!
+          </div>
+        )}
+      </div>
+
       {/* Content to be Captured */}
       <div ref={contentRef} className="bg-white p-4 rounded-[32px]">
         <div className="text-center space-y-6">
@@ -102,11 +183,11 @@ const ResultView: React.FC<Props> = ({
             </div>
             {isDBSaved ? (
               <div className="inline-block px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-full flex items-center gap-1">
-                <span>☁️</span> 서버 저장됨
+                <span>☁️</span> 저장됨
               </div>
             ) : (
                <div className="inline-block px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold rounded-full flex items-center gap-1">
-                <span>⚠️</span> 로컬 모드
+                <span>⚠️</span> 로컬
               </div>
             )}
           </div>
@@ -148,8 +229,6 @@ const ResultView: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Tab Selection (Functional & Capturable) */}
-        {/* data-html2canvas-ignore="true"를 추가하면 PDF 저장 시 이 버튼 영역은 제외됩니다. */}
         <div 
           className="bg-[#F2F4F6] p-1.5 rounded-2xl flex mt-8 mb-6 border border-slate-100"
           data-html2canvas-ignore="true"
@@ -225,61 +304,118 @@ const ResultView: React.FC<Props> = ({
           </div>
         )}
         
-        {/* PDF Branding Footer */}
         <div className="text-center mt-8 text-slate-300 text-xs font-mono">
            Powered by 웅이 연구소
         </div>
       </div>
-      {/* End of Capture Ref */}
-
       
-      {/* Community Feedback Section */}
-      <div className="mx-4 mb-6 bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 space-y-4">
+      {/* Community & Feedback Section */}
+      <div className="mx-4 bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 space-y-6">
         <div className="text-center space-y-1">
           <h3 className="text-lg font-black text-slate-900">이 레시피 어떠셨나요?</h3>
           <p className="text-xs text-slate-400">
-            {isDBSaved ? '평가를 남겨주시면 명예의 전당에 반영됩니다!' : '서버와 연결되지 않아 기록되지 않아요.'}
+            {user ? '당신의 의견을 남겨주세요!' : '로그인 후 평가와 댓글을 남길 수 있어요.'}
           </p>
         </div>
         
-        {/* Star Rating */}
-        <div className="flex justify-center gap-2">
-          {[1, 2, 3, 4, 5].map((star) => (
+        {/* Actions */}
+        <div className="space-y-4">
+            {/* Stars */}
+            <div className="flex justify-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                key={star}
+                onClick={() => handleRating(star)}
+                className={`text-3xl transition-transform active:scale-125 ${star <= rating ? 'grayscale-0' : 'grayscale opacity-30'} ${!isDBSaved && 'cursor-not-allowed opacity-20'}`}
+                >
+                ⭐
+                </button>
+            ))}
+            </div>
+
+            {/* Vote Buttons */}
+            <div className="flex gap-2">
             <button
-              key={star}
-              onClick={() => handleRating(star)}
-              disabled={!isDBSaved}
-              className={`text-3xl transition-transform active:scale-125 ${star <= rating ? 'grayscale-0' : 'grayscale opacity-30'} ${!isDBSaved && 'cursor-not-allowed opacity-20'}`}
+                onClick={() => handleFeedback('success')}
+                disabled={feedback !== null}
+                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                feedback === 'success' 
+                ? 'border-green-500 bg-green-50 text-green-600' 
+                : 'border-slate-100 text-slate-400 hover:border-green-200 hover:text-green-500'
+                } ${!isDBSaved && 'opacity-50'}`}
             >
-              ⭐
+                😋 성공했어요!
             </button>
-          ))}
+            <button
+                onClick={() => handleFeedback('fail')}
+                disabled={feedback !== null}
+                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
+                feedback === 'fail' 
+                ? 'border-red-500 bg-red-50 text-red-600' 
+                : 'border-slate-100 text-slate-400 hover:border-red-200 hover:text-red-500'
+                } ${!isDBSaved && 'opacity-50'}`}
+            >
+                🥲 망했어요..
+            </button>
+            </div>
         </div>
 
-        {/* Success/Fail Vote */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleFeedback('success')}
-            disabled={!isDBSaved || feedback !== null}
-            className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
-              feedback === 'success' 
-              ? 'border-green-500 bg-green-50 text-green-600' 
-              : 'border-slate-100 text-slate-400 hover:border-green-200 hover:text-green-500'
-            } ${!isDBSaved && 'opacity-50 cursor-not-allowed'}`}
-          >
-            😋 성공했어요!
-          </button>
-          <button
-            onClick={() => handleFeedback('fail')}
-            disabled={!isDBSaved || feedback !== null}
-            className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
-              feedback === 'fail' 
-              ? 'border-red-500 bg-red-50 text-red-600' 
-              : 'border-slate-100 text-slate-400 hover:border-red-200 hover:text-red-500'
-            } ${!isDBSaved && 'opacity-50 cursor-not-allowed'}`}
-          >
-            🥲 망했어요..
-          </button>
+        <hr className="border-slate-100" />
+
+        {/* Comment List */}
+        <div className="space-y-4">
+            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                💬 요리 톡
+                <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{comments.length}</span>
+            </h4>
+            
+            {/* Comment Input */}
+            {user ? (
+                <div className="flex gap-2">
+                    <textarea 
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="나만의 꿀팁이나 후기를 공유해주세요!"
+                        rows={2}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#ff5d01] transition-colors resize-none"
+                    />
+                    <button 
+                        onClick={handleSubmitComment}
+                        disabled={isSubmittingComment || !newComment.trim()}
+                        className="bg-[#ff5d01] text-white font-bold rounded-xl px-4 text-sm disabled:opacity-50"
+                    >
+                        등록
+                    </button>
+                </div>
+            ) : (
+                <button 
+                    onClick={handleLogin}
+                    className="w-full py-3 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl border border-dashed border-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
+                >
+                    🔒 로그인하고 댓글 남기기
+                </button>
+            )}
+
+            {/* Comments Display */}
+            <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                {comments.length === 0 ? (
+                    <p className="text-center text-xs text-slate-300 py-4">아직 작성된 후기가 없어요. 첫 번째 주인공이 되어보세요!</p>
+                ) : (
+                    comments.map((comment) => (
+                        <div key={comment.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-slate-700">
+                                    {comment.user_email?.split('@')[0] || '익명'}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                    {new Date(comment.created_at).toLocaleDateString()}
+                                </span>
+                            </div>
+                            <p className="text-sm text-slate-600 whitespace-pre-wrap">{comment.content}</p>
+                        </div>
+                    ))
+                )}
+            </div>
         </div>
       </div>
 
@@ -329,7 +465,6 @@ const ResultView: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Screen Bottom Footer */}
       <div className="text-center py-6 text-slate-300 text-xs font-mono">
          Powered by 퓨전요리연구소
       </div>
@@ -348,6 +483,9 @@ const ResultView: React.FC<Props> = ({
         .ingredients-list ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
         .ingredients-list li { display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; padding: 0.8rem 1rem; border-radius: 8px; font-size: 0.95rem; }
         .ingredients-list li::before { content: '•'; color: #ff5d01; font-weight: bold; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
       `}</style>
     </div>
   );

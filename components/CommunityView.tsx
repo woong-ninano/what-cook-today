@@ -40,17 +40,17 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   return (
     <div className="pt-8 px-6 animate-fadeIn">
       {/* Header Area with Login */}
-      <div className="flex justify-between items-start mb-6 relative z-10">
-        <div className="space-y-2">
-            <h2 className="text-3xl font-black text-slate-900">
+      <div className="flex justify-between items-start mb-6 relative z-50">
+        <div className="space-y-2 pointer-events-none">
+            <h2 className="text-3xl font-black text-slate-900 pointer-events-auto">
             모두의 <span className="brand-orange-text">레시피</span>
             </h2>
-            <p className="text-slate-600 font-bold text-sm">
+            <p className="text-slate-600 font-bold text-sm pointer-events-auto">
             다른 사람들의 맛있는 식탁을 엿보세요.
             </p>
         </div>
         {/* User Profile / Login */}
-        <div className="pt-1 relative z-20">
+        <div className="pt-1 relative z-50">
             {user ? (
                 <div className="flex flex-col items-end gap-1">
                     <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
@@ -58,7 +58,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
                     </span>
                     <button 
                         onClick={signOut}
-                        className="text-[10px] text-slate-400 underline hover:text-slate-600 transition-colors py-2 px-2 -mr-2 cursor-pointer"
+                        className="text-[10px] text-slate-400 underline hover:text-slate-600 transition-colors p-3 -mr-3 cursor-pointer relative z-50 touch-manipulation"
                         aria-label="로그아웃"
                     >
                         로그아웃
@@ -67,7 +67,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
             ) : (
                 <button
                     onClick={signInWithGoogle}
-                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm hover:border-[#ff5d01] hover:text-[#ff5d01] transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm hover:border-[#ff5d01] hover:text-[#ff5d01] transition-all flex items-center gap-1 active:scale-95 cursor-pointer relative z-50 touch-manipulation"
                 >
                     <span className="text-xs">🔑</span> 로그인
                 </button>
@@ -76,7 +76,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
       </div>
 
       {/* Search & Filter */}
-      <div className="space-y-4 mb-6">
+      <div className="space-y-4 mb-6 relative z-10">
         <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
@@ -131,7 +131,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
       </div>
 
       {/* List */}
-      <div className="space-y-4 pb-4">
+      <div className="space-y-4 pb-4 relative z-0">
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="w-8 h-8 border-4 border-orange-100 border-t-[#ff5d01] rounded-full animate-spin"></div>

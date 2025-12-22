@@ -10,6 +10,16 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
 
   const updateHistory = [
     {
+      version: "v1.5.1",
+      tag: "Patch",
+      date: "2025.12.26",
+      changes: [
+        "📱 모바일 크롬 브라우저 터치 인식 및 버튼 사용성 개선",
+        "🔑 레시피 결과 화면 상단에 '로그인' 버튼 추가",
+        "🎨 커뮤니티 카드 UI 개선 (별점순/성공순/댓글순/다운순 정렬, 아이콘 변경)"
+      ]
+    },
+    {
       version: "v1.5.0",
       tag: "System",
       date: "2025.12.25",
@@ -172,7 +182,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               onClick={() => setShowUpdateModal(true)}
               className="text-xs text-slate-500 font-bold hover:text-[#ff5d01] transition-colors underline decoration-slate-300 underline-offset-4 decoration-2"
             >
-              v1.5.0 Update Note
+              v1.5.1 Update Note
             </button>
           </div>
         </div>
@@ -222,6 +232,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
                           update.tag === 'Major' ? 'bg-purple-100 text-purple-600' :
                           update.tag === 'Feature' ? 'bg-blue-100 text-blue-600' :
                           update.tag === 'System' ? 'bg-slate-200 text-slate-700' :
+                          update.tag === 'Patch' ? 'bg-emerald-100 text-emerald-600' :
                           'bg-slate-100 text-slate-500'
                         }`}>
                           {update.tag}

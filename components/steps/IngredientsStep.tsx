@@ -17,7 +17,7 @@ const IngredientsStep: React.FC<Props> = ({ choices, setChoices, onNext, onBack 
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">
             지금 냉장고에<br/><span className="brand-orange-text">무엇이 있나요?</span>
           </h2>
-          <p className="text-slate-400 font-bold text-lg">주재료를 자유롭게 적어주세요.</p>
+          <p className="text-slate-400 font-bold text-lg">주재료를 적거나, 하고 싶은 요리를 자유롭게 적어주세요.</p>
         </div>
         
         <div className="group relative">

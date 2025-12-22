@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import { 
   incrementDownloadCount, 
   updateRating, 
-  updateVote, 
+  updateVoteCounts, 
   signInWithGoogle, 
   signOut, 
   fetchComments, 
@@ -42,7 +42,13 @@ const ResultView: React.FC<Props> = ({
   const [tab, setTab] = useState<'easy' | 'gourmet'>('easy');
   const [isDownloading, setIsDownloading] = useState(false);
   const [rating, setRating] = useState<number>(0);
-  const [feedback, setFeedback] = useState<'success' | 'fail' | null>(null);
+  
+  // Vote State for Toggle UI (Local state to track current session's vote)
+  const [myVote, setMyVote] = useState<'success' | 'fail' | null>(null);
+  const [voteCounts, setVoteCounts] = useState({ success: 0, fail: 0 });
+
+  // Toast Notification
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   // Comments State
   const [comments, setComments] = useState<Comment[]>([]);
@@ -53,7 +59,7 @@ const ResultView: React.FC<Props> = ({
 
   const isDBSaved = !!result.id;
 
-  // Load comments when recipe changes
+  // Initialize data
   useEffect(() => {
     if (result.id) {
       fetchComments(result.id).then(setComments);
@@ -61,11 +67,19 @@ const ResultView: React.FC<Props> = ({
       setComments([]);
     }
     setRating(0);
-    setFeedback(null);
-  }, [result.id]);
+    setMyVote(null);
+    setVoteCounts({ 
+        success: result.vote_success || 0, 
+        fail: result.vote_fail || 0 
+    });
+  }, [result.id, result.vote_success, result.vote_fail]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const handleLogin = async () => {
-    // 현재 레시피 상태 저장 후 로그인
     onSaveContext();
     await signInWithGoogle();
   };
@@ -118,9 +132,11 @@ const ResultView: React.FC<Props> = ({
     setRating(score);
     if (result.id) {
       await updateRating(result.id, score);
+      showToast(`${score}점 별점이 저장되었습니다! ⭐`);
     }
   };
 
+  // Toggle Logic for Voting
   const handleFeedback = async (type: 'success' | 'fail') => {
     if (!user) {
       if (confirm("투표를 하려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
@@ -128,12 +144,64 @@ const ResultView: React.FC<Props> = ({
       }
       return;
     }
+    
+    if (!result.id) return;
 
-    if (feedback) return;
-    setFeedback(type);
-    if (result.id) {
-      await updateVote(result.id, type);
+    let successDelta = 0;
+    let failDelta = 0;
+
+    // Case 1: Cancel Vote (Toggle off)
+    if (myVote === type) {
+        setMyVote(null);
+        if (type === 'success') {
+            successDelta = -1;
+            setVoteCounts(prev => ({ ...prev, success: Math.max(0, prev.success - 1) }));
+            showToast("투표가 취소되었습니다.");
+        } else {
+            failDelta = -1;
+            setVoteCounts(prev => ({ ...prev, fail: Math.max(0, prev.fail - 1) }));
+            showToast("투표가 취소되었습니다.");
+        }
+    } 
+    // Case 2: New Vote (Empty -> Type)
+    else if (myVote === null) {
+        setMyVote(type);
+        if (type === 'success') {
+            successDelta = 1;
+            setVoteCounts(prev => ({ ...prev, success: prev.success + 1 }));
+            showToast("성공 투표가 반영되었습니다! 😋");
+        } else {
+            failDelta = 1;
+            setVoteCounts(prev => ({ ...prev, fail: prev.fail + 1 }));
+            showToast("실패 투표가 반영되었습니다. 🥲");
+        }
+    } 
+    // Case 3: Switch Vote (Success <-> Fail)
+    else {
+        setMyVote(type);
+        if (type === 'success') {
+            // Fail -> Success
+            failDelta = -1;
+            successDelta = 1;
+            setVoteCounts(prev => ({ 
+                success: prev.success + 1, 
+                fail: Math.max(0, prev.fail - 1) 
+            }));
+            showToast("성공으로 변경되었습니다! 😋");
+        } else {
+            // Success -> Fail
+            successDelta = -1;
+            failDelta = 1;
+            setVoteCounts(prev => ({ 
+                success: Math.max(0, prev.success - 1), 
+                fail: prev.fail + 1 
+            }));
+            showToast("실패로 변경되었습니다. 🥲");
+        }
     }
+
+    // Update DB
+    await updateVoteCounts(result.id, successDelta, failDelta);
   };
 
   const handleSubmitComment = async () => {
@@ -150,6 +218,7 @@ const ResultView: React.FC<Props> = ({
     if (added) {
       setComments(prev => [added, ...prev]);
       setNewComment('');
+      showToast("댓글이 등록되었습니다! 💬");
     } else {
       alert("댓글 작성에 실패했습니다.");
     }
@@ -157,8 +226,18 @@ const ResultView: React.FC<Props> = ({
   };
 
   return (
-    <div className="animate-fadeIn space-y-8 pb-10 pt-10">
+    <div className="animate-fadeIn space-y-8 pb-10 pt-10 relative">
       
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fadeIn">
+          <div className="bg-slate-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm">
+            <span>✅</span>
+            {toastMessage}
+          </div>
+        </div>
+      )}
+
       {/* Login Status Bar */}
       <div className="flex justify-between items-center px-2">
         {user ? (
@@ -239,7 +318,7 @@ const ResultView: React.FC<Props> = ({
               tab === 'easy' ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-400'
             }`}
           >
-            ⚡ 간편 레시피
+            ⚡ 간편 조리법
           </button>
           <button
             onClick={() => setTab('gourmet')}
@@ -337,25 +416,27 @@ const ResultView: React.FC<Props> = ({
             <div className="flex gap-2">
             <button
                 onClick={() => handleFeedback('success')}
-                disabled={feedback !== null}
-                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
-                feedback === 'success' 
-                ? 'border-green-500 bg-green-50 text-green-600' 
+                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center justify-center gap-1 ${
+                myVote === 'success' 
+                ? 'border-green-500 bg-green-50 text-green-600 shadow-md shadow-green-100' 
                 : 'border-slate-100 text-slate-400 hover:border-green-200 hover:text-green-500'
-                } ${!isDBSaved && 'opacity-50'}`}
+                } ${!isDBSaved && 'opacity-50 cursor-not-allowed'}`}
+                disabled={!isDBSaved}
             >
-                😋 성공했어요!
+                <span>😋 성공했어요!</span>
+                <span className="text-[10px] font-medium opacity-80">{voteCounts.success}</span>
             </button>
             <button
                 onClick={() => handleFeedback('fail')}
-                disabled={feedback !== null}
-                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${
-                feedback === 'fail' 
-                ? 'border-red-500 bg-red-50 text-red-600' 
+                className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center justify-center gap-1 ${
+                myVote === 'fail' 
+                ? 'border-red-500 bg-red-50 text-red-600 shadow-md shadow-red-100' 
                 : 'border-slate-100 text-slate-400 hover:border-red-200 hover:text-red-500'
-                } ${!isDBSaved && 'opacity-50'}`}
+                } ${!isDBSaved && 'opacity-50 cursor-not-allowed'}`}
+                disabled={!isDBSaved}
             >
-                🥲 망했어요..
+                <span>🥲 망했어요..</span>
+                <span className="text-[10px] font-medium opacity-80">{voteCounts.fail}</span>
             </button>
             </div>
         </div>

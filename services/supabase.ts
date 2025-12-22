@@ -79,9 +79,10 @@ export const fetchCommunityRecipes = async (
 ): Promise<RecipeResult[]> => {
   if (!supabase) return [];
 
+  // 댓글 수(count)를 함께 가져오기 위해 select 수정
   let query = supabase
     .from('recipes')
-    .select('*');
+    .select('*, comments(count)');
 
   // 검색 필터
   if (search) {
@@ -115,7 +116,11 @@ export const fetchCommunityRecipes = async (
     created_at: row.created_at,
     rating_sum: row.rating_sum,
     rating_count: row.rating_count,
-    download_count: row.download_count
+    download_count: row.download_count,
+    vote_success: row.vote_success || 0,
+    vote_fail: row.vote_fail || 0,
+    // comments 배열의 첫 번째 요소의 count 값을 가져옴 (Supabase 응답 구조 대응)
+    comment_count: row.comments?.[0]?.count || 0
   }));
 };
 
@@ -164,27 +169,41 @@ export const updateRating = async (id: number, score: number) => {
   }
 };
 
-export const updateVote = async (id: number, type: 'success' | 'fail') => {
+// 투표 업데이트 (증감 지원)
+export const updateVoteCounts = async (id: number, successDelta: number, failDelta: number) => {
   if (!id || !supabase) return;
 
-  const field = type === 'success' ? 'vote_success' : 'vote_fail';
-  
   try {
     const { data: current } = await supabase
       .from('recipes')
-      .select(field)
+      .select('vote_success, vote_fail')
       .eq('id', id)
       .single();
 
     if (current) {
+      const newSuccess = Math.max(0, current.vote_success + successDelta);
+      const newFail = Math.max(0, current.vote_fail + failDelta);
+      
       await supabase
         .from('recipes')
-        .update({ [field]: current[field] + 1 })
+        .update({ 
+          vote_success: newSuccess,
+          vote_fail: newFail
+        })
         .eq('id', id);
     }
   } catch (err) {
     console.error('Error updating vote:', err);
   }
+};
+
+/**
+ * Deprecated: Use updateVoteCounts instead for more control
+ */
+export const updateVote = async (id: number, type: 'success' | 'fail') => {
+  const successDelta = type === 'success' ? 1 : 0;
+  const failDelta = type === 'fail' ? 1 : 0;
+  await updateVoteCounts(id, successDelta, failDelta);
 };
 
 /**

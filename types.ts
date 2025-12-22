@@ -34,6 +34,9 @@ export interface RecipeResult {
   rating_sum?: number;
   rating_count?: number;
   download_count?: number;
+  vote_success?: number;
+  vote_fail?: number;
+  comment_count?: number;
 }
 
 export interface Comment {

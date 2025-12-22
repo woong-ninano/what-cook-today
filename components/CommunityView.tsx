@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { fetchCommunityRecipes } from '../services/supabase';
+import { fetchCommunityRecipes, signInWithGoogle, signOut } from '../services/supabase';
 import { RecipeResult } from '../types';
+import { User } from '@supabase/supabase-js';
 
 interface Props {
   onSelectRecipe: (recipe: RecipeResult) => void;
+  user: User | null;
 }
 
-const CommunityView: React.FC<Props> = ({ onSelectRecipe }) => {
+const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   const [recipes, setRecipes] = useState<RecipeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,13 +38,39 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe }) => {
 
   return (
     <div className="pt-8 pb-24 px-6 h-full flex flex-col animate-fadeIn">
-      <div className="space-y-2 mb-6">
-        <h2 className="text-3xl font-black text-slate-900">
-          모두의 <span className="brand-orange-text">레시피</span>
-        </h2>
-        <p className="text-slate-500 font-medium text-sm">
-          다른 사람들은 어떤 맛있는 요리를 해먹었을까요?
-        </p>
+      {/* Header Area with Login */}
+      <div className="flex justify-between items-start mb-6">
+        <div className="space-y-2">
+            <h2 className="text-3xl font-black text-slate-900">
+            모두의 <span className="brand-orange-text">레시피</span>
+            </h2>
+            <p className="text-slate-500 font-medium text-sm">
+            다른 사람들의 맛있는 식탁을 엿보세요.
+            </p>
+        </div>
+        {/* User Profile / Login */}
+        <div className="pt-1">
+            {user ? (
+                <div className="flex flex-col items-end gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
+                        {user.email?.split('@')[0]}님
+                    </span>
+                    <button 
+                        onClick={signOut}
+                        className="text-[10px] text-slate-300 underline hover:text-slate-500 transition-colors"
+                    >
+                        로그아웃
+                    </button>
+                </div>
+            ) : (
+                <button
+                    onClick={signInWithGoogle}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm hover:border-[#ff5d01] hover:text-[#ff5d01] transition-all flex items-center gap-1 active:scale-95"
+                >
+                    <span className="text-xs">🔑</span> 로그인
+                </button>
+            )}
+        </div>
       </div>
 
       {/* Search & Filter */}
@@ -58,7 +86,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe }) => {
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
           <button 
             type="submit" 
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors"
           >
             검색
           </button>

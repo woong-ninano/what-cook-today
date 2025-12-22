@@ -221,17 +221,15 @@ const App: React.FC = () => {
   };
 
   const handleCommunityRecipeSelect = (recipe: RecipeResult) => {
-    // 커뮤니티에서 레시피 선택 시, 히스토리 끝에 추가하고 보여줌
-    // 단, 재생성/저장 기능 제한은 ResultView 내부 로직에 따름 (이미 DB에 있으므로 저장됨 표시)
     setRecipeHistory([recipe]);
     setCurrentRecipeIndex(0);
     setStep(Step.Result);
-    setActiveTab('home'); // 뷰를 홈(레시피 뷰어)로 전환
+    setActiveTab('home');
   };
 
   const renderContent = () => {
     if (activeTab === 'community') {
-      return <CommunityView onSelectRecipe={handleCommunityRecipeSelect} />;
+      return <CommunityView onSelectRecipe={handleCommunityRecipeSelect} user={user} />;
     }
 
     // Home Tab Flow

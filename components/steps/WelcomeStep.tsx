@@ -10,6 +10,17 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
 
   const updateHistory = [
     {
+      version: "v1.3.0",
+      tag: "Major",
+      date: "2025.12.23",
+      changes: [
+        "🔐 구글 로그인 연동 및 사용자 인증 시스템 적용",
+        "💬 레시피별 댓글 작성 및 커뮤니티 기능 오픈",
+        "🛡️ 인증된 사용자만 참여 가능한 클린 리뷰(별점/투표) 시스템",
+        "💾 로그인 리다이렉트 시 진행 중인 레시피 자동 복구 기능"
+      ]
+    },
+    {
       version: "v1.2.8",
       tag: "Speed",
       date: "2025.12.22",
@@ -139,7 +150,7 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
               onClick={() => setShowUpdateModal(true)}
               className="text-[10px] text-slate-300 font-bold hover:text-[#ff5d01] transition-colors underline decoration-slate-200 underline-offset-2"
             >
-              v1.2.8 Update Note
+              v1.3.0 Update Note
             </button>
           </div>
         </div>

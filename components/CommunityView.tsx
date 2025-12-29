@@ -9,7 +9,7 @@ interface Props {
   user: User | null;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   const [recipes, setRecipes] = useState<RecipeResult[]>([]);

@@ -34,6 +34,7 @@ export const fetchSeasonalIngredients = async (excluded: string[] = []) => {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 0 }, // 속도 최우선: 추론 단계 생략
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -75,6 +76,7 @@ export const fetchConvenienceTopics = async (excluded: string[] = [], category: 
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 0 }, // 속도 최우선: 추론 단계 생략
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -111,6 +113,7 @@ export const fetchSuggestions = async (ingredients: string) => {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 0 }, // 속도 최우선: 추론 단계 생략
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -170,6 +173,7 @@ export const generateRecipe = async (choices: UserChoices, isRegenerate: boolean
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 0 }, // 속도 최우선: 추론 단계 생략
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

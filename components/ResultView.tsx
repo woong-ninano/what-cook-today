@@ -15,7 +15,6 @@ import {
 
 interface Props {
   result: RecipeResult;
-  // Use any to bypass version-specific typing issues with the User object
   user: any | null;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -42,24 +41,16 @@ const ResultView: React.FC<Props> = ({
   const [tab, setTab] = useState<'easy' | 'gourmet'>('easy');
   const [isDownloading, setIsDownloading] = useState(false);
   const [rating, setRating] = useState<number>(0);
-  
-  // Vote State for Toggle UI (Local state to track current session's vote)
   const [myVote, setMyVote] = useState<'success' | 'fail' | null>(null);
   const [voteCounts, setVoteCounts] = useState({ success: 0, fail: 0 });
-
-  // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  // Comments State
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
-
   const isDBSaved = !!result.id;
 
-  // Initialize data
   useEffect(() => {
     if (result.id) {
       fetchComments(result.id).then(setComments);
@@ -79,8 +70,10 @@ const ResultView: React.FC<Props> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleLogin = async () => {
-    onSaveContext();
+  const handleLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSaveContext(); // 현재 레시피 히스토리 저장
     await signInWithGoogle();
   };
 
@@ -124,7 +117,8 @@ const ResultView: React.FC<Props> = ({
   const handleRating = async (score: number) => {
     if (!user) {
       if (confirm("별점을 남기려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
-        handleLogin();
+        onSaveContext();
+        await signInWithGoogle();
       }
       return;
     }
@@ -136,11 +130,11 @@ const ResultView: React.FC<Props> = ({
     }
   };
 
-  // Toggle Logic for Voting
   const handleFeedback = async (type: 'success' | 'fail') => {
     if (!user) {
       if (confirm("투표를 하려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
-        handleLogin();
+        onSaveContext();
+        await signInWithGoogle();
       }
       return;
     }
@@ -150,7 +144,6 @@ const ResultView: React.FC<Props> = ({
     let successDelta = 0;
     let failDelta = 0;
 
-    // Case 1: Cancel Vote (Toggle off)
     if (myVote === type) {
         setMyVote(null);
         if (type === 'success') {
@@ -162,9 +155,7 @@ const ResultView: React.FC<Props> = ({
             setVoteCounts(prev => ({ ...prev, fail: Math.max(0, prev.fail - 1) }));
             showToast("투표가 취소되었습니다.");
         }
-    } 
-    // Case 2: New Vote (Empty -> Type)
-    else if (myVote === null) {
+    } else if (myVote === null) {
         setMyVote(type);
         if (type === 'success') {
             successDelta = 1;
@@ -175,12 +166,9 @@ const ResultView: React.FC<Props> = ({
             setVoteCounts(prev => ({ ...prev, fail: prev.fail + 1 }));
             showToast("실패 투표가 반영되었습니다. 🥲");
         }
-    } 
-    // Case 3: Switch Vote (Success <-> Fail)
-    else {
+    } else {
         setMyVote(type);
         if (type === 'success') {
-            // Fail -> Success
             failDelta = -1;
             successDelta = 1;
             setVoteCounts(prev => ({ 
@@ -189,7 +177,6 @@ const ResultView: React.FC<Props> = ({
             }));
             showToast("성공으로 변경되었습니다! 😋");
         } else {
-            // Success -> Fail
             successDelta = -1;
             failDelta = 1;
             setVoteCounts(prev => ({ 
@@ -200,14 +187,14 @@ const ResultView: React.FC<Props> = ({
         }
     }
 
-    // Update DB
     await updateVoteCounts(result.id, successDelta, failDelta);
   };
 
   const handleSubmitComment = async () => {
     if (!user) {
       if (confirm("댓글을 작성하려면 로그인이 필요합니다. 로그인 하시겠습니까?")) {
-        handleLogin();
+        onSaveContext();
+        await signInWithGoogle();
       }
       return;
     }
@@ -227,8 +214,6 @@ const ResultView: React.FC<Props> = ({
 
   return (
     <div className="animate-fadeIn space-y-8 pb-10 pt-10 relative">
-      
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-fadeIn">
           <div className="bg-slate-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold flex items-center gap-2 backdrop-blur-sm">
@@ -238,7 +223,7 @@ const ResultView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Login Status Bar */}
+      {/* 상단 로그인 상태바 */}
       <div className="flex justify-between items-center px-4 py-2 relative z-50">
         {user ? (
           <div className="text-xs text-slate-500 font-bold flex items-center gap-2">
@@ -246,7 +231,7 @@ const ResultView: React.FC<Props> = ({
             {user.email?.split('@')[0]}님 환영합니다
             <button 
                 onClick={signOut} 
-                className="text-slate-400 underline ml-2 p-3 -mr-3 hover:text-slate-600 transition-colors cursor-pointer relative z-50 touch-manipulation"
+                className="text-slate-400 underline ml-2 p-2 hover:text-slate-600 transition-colors cursor-pointer"
             >
                 로그아웃
             </button>
@@ -258,15 +243,14 @@ const ResultView: React.FC<Props> = ({
             </span>
             <button
                 onClick={handleLogin}
-                className="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-full font-bold text-slate-600 shadow-sm hover:text-[#ff5d01] hover:border-[#ff5d01] transition-all active:scale-95 cursor-pointer relative z-50 touch-manipulation"
+                className="text-xs bg-white border border-slate-200 px-4 py-2 rounded-full font-bold text-slate-600 shadow-sm hover:text-[#ff5d01] hover:border-[#ff5d01] transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
-                🔑 로그인
+                <span>🔑</span> 로그인
             </button>
           </div>
         )}
       </div>
 
-      {/* Content to be Captured */}
       <div ref={contentRef} className="bg-white p-4 rounded-[32px]">
         <div className="text-center space-y-6">
           <div className="flex justify-center gap-2 items-center">
@@ -290,10 +274,10 @@ const ResultView: React.FC<Props> = ({
                 src={result.imageUrl} 
                 alt={result.dishName} 
                 className="w-full h-full object-cover"
-                crossOrigin="anonymous" // CORS issue for html2canvas
+                crossOrigin="anonymous"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-4">
-                <span className="text-white/80 text-xs font-medium">Generated by Gemini Nano Banana</span>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-4 text-left">
+                <span className="text-white/80 text-[10px] font-medium">⚡ Speed Optimized by Gemini 3 Flash</span>
               </div>
             </div>
           )}
@@ -308,7 +292,6 @@ const ResultView: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 재료 목록 섹션 */}
         {result.ingredientsList && (
           <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-50 mt-6">
             <h3 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
@@ -401,7 +384,6 @@ const ResultView: React.FC<Props> = ({
         </div>
       </div>
       
-      {/* Community & Feedback Section */}
       <div className="mx-4 bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 space-y-6">
         <div className="text-center space-y-1">
           <h3 className="text-lg font-black text-slate-900">이 레시피 어떠셨나요?</h3>
@@ -410,9 +392,7 @@ const ResultView: React.FC<Props> = ({
           </p>
         </div>
         
-        {/* Actions */}
         <div className="space-y-4">
-            {/* Stars */}
             <div className="flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -425,7 +405,6 @@ const ResultView: React.FC<Props> = ({
             ))}
             </div>
 
-            {/* Vote Buttons */}
             <div className="flex gap-2">
             <button
                 onClick={() => handleFeedback('success')}
@@ -456,14 +435,12 @@ const ResultView: React.FC<Props> = ({
 
         <hr className="border-slate-100" />
 
-        {/* Comment List */}
         <div className="space-y-4">
             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                 💬 요리 톡
                 <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{comments.length}</span>
             </h4>
             
-            {/* Comment Input */}
             {user ? (
                 <div className="flex gap-2">
                     <textarea 
@@ -484,13 +461,12 @@ const ResultView: React.FC<Props> = ({
             ) : (
                 <button 
                     onClick={handleLogin}
-                    className="w-full py-3 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl border border-dashed border-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
+                    className="w-full py-4 bg-slate-50 text-slate-400 text-sm font-bold rounded-xl border border-dashed border-slate-300 hover:bg-slate-100 hover:text-[#ff5d01] transition-all flex items-center justify-center gap-2"
                 >
                     🔒 로그인하고 댓글 남기기
                 </button>
             )}
 
-            {/* Comments Display */}
             <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                 {comments.length === 0 ? (
                     <p className="text-center text-xs text-slate-300 py-4">아직 작성된 후기가 없어요. 첫 번째 주인공이 되어보세요!</p>

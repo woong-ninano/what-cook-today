@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Step, UserChoices, RecipeResult } from './types.ts';
+import { Step, UserChoices, RecipeResult, CommunityCache } from './types.ts';
 import WelcomeStep from './components/steps/WelcomeStep.tsx';
 import ModeSelectionStep from './components/steps/ModeSelectionStep.tsx';
 import IngredientsStep from './components/steps/IngredientsStep.tsx';
@@ -21,24 +21,33 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'community'>('home');
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Recipe Generation History
   const [recipeHistory, setRecipeHistory] = useState<RecipeResult[]>([]);
   const [currentRecipeIndex, setCurrentRecipeIndex] = useState<number>(-1);
+
+  // Community Cache State
+  const [communityCache, setCommunityCache] = useState<CommunityCache>({
+    recipes: [],
+    searchTerm: '',
+    sortBy: 'latest',
+    page: 0,
+    hasMore: true,
+    scrollPosition: 0
+  });
+
   const [choices, setChoices] = useState<UserChoices>({
     mode: 'fridge', ingredients: '', sauces: [], cuisine: '자유 퓨전',
     partner: '👤 혼밥', theme: '🍚 든든한 한끼', tools: [], level: 'Lv.2 평범한 주부'
   });
+  
   const [suggestions, setSuggestions] = useState({ subIngredients: [], sauces: [] });
   const [seasonalItems, setSeasonalItems] = useState<{name: string, desc: string}[]>([]);
   const [convenienceItems, setConvenienceItems] = useState<{name: string, desc: string}[]>([]);
   const [convenienceType, setConvenienceType] = useState<'meal' | 'snack'>('meal');
 
   useEffect(() => {
-    try {
-      window.history.replaceState({ step: Step.Welcome, activeTab: 'home' }, '', window.location.search);
-    } catch (e) {
-      console.warn("History API is restricted in this environment.");
-    }
-
+    // URL Sync
     const handlePopState = (event: PopStateEvent) => {
       if (event.state) {
         setStep(event.state.step);
@@ -47,6 +56,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('popstate', handlePopState);
     
+    // Supabase Auth
     if (supabase) {
       (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
         setUser(session?.user ?? null);
@@ -56,6 +66,7 @@ const App: React.FC = () => {
       });
     }
 
+    // Restore from SessionStorage if login redirect happened
     const savedHistory = sessionStorage.getItem('recipe_restore_history');
     const savedIndex = sessionStorage.getItem('recipe_restore_index');
     if (savedHistory && savedIndex) {
@@ -66,9 +77,7 @@ const App: React.FC = () => {
         setActiveTab('home');
         sessionStorage.removeItem('recipe_restore_history');
         sessionStorage.removeItem('recipe_restore_index');
-      } catch (e) {
-        console.error("History restore failed", e);
-      }
+      } catch (e) {}
     }
 
     return () => window.removeEventListener('popstate', handlePopState);
@@ -86,9 +95,7 @@ const App: React.FC = () => {
       } else {
         window.history.replaceState(state, '', url);
       }
-    } catch (e) {
-      console.warn("URL update failed due to environment restrictions, but state was updated.", e);
-    }
+    } catch (e) {}
   };
 
   const startGeneration = async (isRegen: boolean = false, overridePrompt?: string) => {
@@ -140,13 +147,6 @@ const App: React.FC = () => {
     }
   };
 
-  const saveContextForLogin = () => {
-    if (recipeHistory.length > 0) {
-      sessionStorage.setItem('recipe_restore_history', JSON.stringify(recipeHistory));
-      sessionStorage.setItem('recipe_restore_index', currentRecipeIndex.toString());
-    }
-  };
-
   const loadSeasonalItems = async (isMore: boolean = false) => {
     setIsLoading(true);
     try {
@@ -156,11 +156,7 @@ const App: React.FC = () => {
       else setSeasonalItems(items);
       setChoices(prev => ({ ...prev, mode: 'seasonal', ingredients: '' }));
       navigateTo(Step.SeasonalSelection, 'home');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) {} finally { setIsLoading(false); }
   };
 
   const loadConvenienceItems = async (type: 'meal' | 'snack', isMore: boolean = false) => {
@@ -173,15 +169,21 @@ const App: React.FC = () => {
       setConvenienceType(type);
       setChoices(prev => ({ ...prev, mode: 'convenience' }));
       navigateTo(Step.ConvenienceSelection, 'home');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) {} finally { setIsLoading(false); }
   };
 
   const renderContent = () => {
-    if (activeTab === 'community') return <CommunityView onSelectRecipe={handleCommunityRecipeSelect} user={user} />;
+    if (activeTab === 'community') {
+      return (
+        <CommunityView 
+          onSelectRecipe={handleCommunityRecipeSelect} 
+          user={user} 
+          cache={communityCache}
+          onUpdateCache={(update) => setCommunityCache(prev => ({ ...prev, ...update }))}
+        />
+      );
+    }
+    
     if (isLoading) return <LoadingStep customMessage="데이터를 불러오는 중입니다..." />;
 
     const result = currentRecipeIndex >= 0 ? recipeHistory[currentRecipeIndex] : null;
@@ -244,7 +246,12 @@ const App: React.FC = () => {
         return <EnvironmentStep choices={choices} setChoices={setChoices} onGenerate={() => startGeneration()} onBack={() => navigateTo(Step.Preferences, 'home')} />;
       
       case Step.Result: 
-        return result ? <ResultView result={result} user={user} canGoBack={currentRecipeIndex > 0} canGoForward={currentRecipeIndex < recipeHistory.length - 1} onReset={() => navigateTo(Step.Welcome, 'home')} onRegenerate={() => startGeneration(true)} onViewAlternative={(title) => startGeneration(false, title)} onGoBack={() => setCurrentRecipeIndex(prev => prev - 1)} onGoForward={() => setCurrentRecipeIndex(prev => prev + 1)} onSaveContext={saveContextForLogin} /> : null;
+        return result ? <ResultView result={result} user={user} canGoBack={currentRecipeIndex > 0} canGoForward={currentRecipeIndex < recipeHistory.length - 1} onReset={() => navigateTo(Step.Welcome, 'home')} onRegenerate={() => startGeneration(true)} onViewAlternative={(title) => startGeneration(false, title)} onGoBack={() => setCurrentRecipeIndex(prev => prev - 1)} onGoForward={() => setCurrentRecipeIndex(prev => prev + 1)} onSaveContext={() => {
+          if (recipeHistory.length > 0) {
+            sessionStorage.setItem('recipe_restore_history', JSON.stringify(recipeHistory));
+            sessionStorage.setItem('recipe_restore_index', currentRecipeIndex.toString());
+          }
+        }} /> : null;
       
       case Step.Loading: 
         return <LoadingStep />;
@@ -257,7 +264,9 @@ const App: React.FC = () => {
   return (
     <div className="min-h-dvh bg-[#F2F4F6] flex justify-center overflow-x-hidden">
       <div className="w-full max-w-lg bg-white min-h-dvh flex flex-col relative toss-card overflow-hidden">
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 custom-scrollbar">{renderContent()}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 custom-scrollbar">
+          {renderContent()}
+        </main>
         <nav className="h-[86px] bg-white border-t border-slate-100 flex items-center justify-around fixed bottom-0 w-full max-w-lg z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] pb-2 rounded-t-[20px]">
           <button onClick={() => navigateTo(Step.Welcome, 'home')} className={`flex flex-col items-center gap-1.5 w-full h-full justify-center transition-all ${activeTab === 'home' ? 'text-[#ff5d01]' : 'text-slate-400'}`}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg><span className="text-[11px] font-bold">레시피 생성</span></button>
           <button onClick={() => navigateTo(Step.Community, 'community')} className={`flex flex-col items-center gap-1.5 w-full h-full justify-center transition-all ${activeTab === 'community' ? 'text-[#ff5d01]' : 'text-slate-400'}`}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span className="text-[11px] font-bold">커뮤니티</span></button>

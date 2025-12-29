@@ -21,17 +21,17 @@ export interface ReferenceLink {
 }
 
 export interface RecipeResult {
-  id?: number; // Supabase DB ID (Optional)
+  id?: number; 
   dishName: string;
   comment: string;
-  ingredientsList: string; // HTML format <ul><li>
+  ingredientsList: string; 
   easyRecipe: string;
   gourmetRecipe: string;
   similarRecipes: SimilarRecipe[];
   referenceLinks: ReferenceLink[];
   imageUrl?: string;
-  thumbnailUrl?: string; // 썸네일 URL 추가
-  created_at?: string; // DB created_at
+  thumbnailUrl?: string; 
+  created_at?: string; 
   rating_sum?: number;
   rating_count?: number;
   download_count?: number;
@@ -49,6 +49,15 @@ export interface Comment {
   created_at: string;
 }
 
+export interface CommunityCache {
+  recipes: RecipeResult[];
+  searchTerm: string;
+  sortBy: 'latest' | 'rating' | 'success' | 'comments';
+  page: number;
+  hasMore: boolean;
+  scrollPosition: number;
+}
+
 export enum Step {
   Welcome = 0,
   ModeSelection = 1,
@@ -61,5 +70,5 @@ export enum Step {
   Environment = 8,
   Loading = 9,
   Result = 10,
-  Community = 11 // New Step for Community View
+  Community = 11
 }

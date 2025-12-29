@@ -1,83 +1,123 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchCommunityRecipes, signInWithGoogle, signOut, supabase } from '../services/supabase';
-import { RecipeResult } from '../types';
+import { RecipeResult, CommunityCache } from '../types';
 
 interface Props {
   onSelectRecipe: (recipe: RecipeResult) => void;
   user: any | null;
+  cache: CommunityCache;
+  onUpdateCache: (update: Partial<CommunityCache>) => void;
 }
 
 const PAGE_SIZE = 8;
 
-const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
-  const [recipes, setRecipes] = useState<RecipeResult[]>([]);
+const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateCache }) => {
+  const [recipes, setRecipes] = useState<RecipeResult[]>(cache.recipes);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'latest' | 'rating' | 'success' | 'comments'>('latest');
-  const [hasMore, setHasMore] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(cache.searchTerm);
+  const [sortBy, setSortBy] = useState(cache.sortBy);
+  const [hasMore, setHasMore] = useState(cache.hasMore);
   
-  // 페이지 상태를 Ref로 관리하여 loadRecipes 함수가 재생성되는 것을 방지
-  const pageRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef(cache.page);
   const fetchingRef = useRef(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  // 레시피를 가져오는 핵심 로직
+  // 로컬 정렬 함수 (즉각적인 피드백용)
+  const sortLocally = useCallback((list: RecipeResult[], criteria: string) => {
+    const sorted = [...list];
+    if (criteria === 'rating') {
+      sorted.sort((a, b) => {
+        const rateA = (a.rating_sum || 0) / (a.rating_count || 1);
+        const rateB = (b.rating_sum || 0) / (b.rating_count || 1);
+        return rateB - rateA;
+      });
+    } else if (criteria === 'success') {
+      sorted.sort((a, b) => (b.vote_success || 0) - (a.vote_success || 0));
+    } else if (criteria === 'latest') {
+      sorted.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    }
+    return sorted;
+  }, []);
+
   const loadRecipes = useCallback(async (isReset: boolean = false) => {
     if (fetchingRef.current || !supabase) return;
     
     fetchingRef.current = true;
     setLoading(true);
-    setError(null);
 
     try {
-      if (isReset) {
-        pageRef.current = 0;
-      }
-
-      const targetPage = pageRef.current;
+      const targetPage = isReset ? 0 : pageRef.current;
       const newRecipes = await fetchCommunityRecipes(searchTerm, sortBy, targetPage, PAGE_SIZE);
       
-      setHasMore(newRecipes.length >= PAGE_SIZE);
+      const nextHasMore = newRecipes.length >= PAGE_SIZE;
+      setHasMore(nextHasMore);
       
+      let updatedList: RecipeResult[];
       if (isReset) {
-        setRecipes(newRecipes);
+        updatedList = newRecipes;
+        pageRef.current = 1;
       } else {
-        setRecipes(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const filtered = newRecipes.filter(r => !existingIds.has(r.id));
-          return [...prev, ...filtered];
-        });
+        const existingIds = new Set(recipes.map(r => r.id));
+        const filtered = newRecipes.filter(r => !existingIds.has(r.id));
+        updatedList = [...recipes, ...filtered];
+        pageRef.current += 1;
       }
-      
-      // 다음 페이지 준비
-      pageRef.current += 1;
+
+      setRecipes(updatedList);
+      onUpdateCache({ 
+        recipes: updatedList, 
+        hasMore: nextHasMore, 
+        page: pageRef.current,
+        searchTerm,
+        sortBy
+      });
     } catch (err) {
       console.error("Community Load Error:", err);
-      setError("레시피를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [searchTerm, sortBy]); // pageRef는 의존성에 넣지 않음
+  }, [searchTerm, sortBy, recipes, onUpdateCache]);
 
-  // 검색어 또는 정렬 기준 변경 시 초기화 및 로드
+  // 정렬/검색 변경 시
   useEffect(() => {
-    if (!supabase) return;
+    // 이미 캐시가 있고, 검색어나 소팅만 바꾼 경우 로컬에서 먼저 정렬 시도
+    if (recipes.length > 0) {
+      const locallySorted = sortLocally(recipes, sortBy);
+      setRecipes(locallySorted);
+    }
 
-    // 즉시 로딩 상태로 만들어 이전 데이터가 잠깐 보이는 현상 방지
-    setRecipes([]);
-    setHasMore(true);
-    
     const timeoutId = setTimeout(() => {
       loadRecipes(true);
-    }, 300); // 디바운싱
+    }, 400);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, sortBy, loadRecipes]);
+  }, [searchTerm, sortBy]);
 
-  // 무한 스크롤 관찰자 설정
+  // 스크롤 복구
+  useEffect(() => {
+    if (containerRef.current && cache.scrollPosition > 0) {
+      // 컴포넌트 마운트 후 약간의 지연을 주어 렌더링 후 스크롤
+      setTimeout(() => {
+        window.scrollTo(0, cache.scrollPosition);
+      }, 50);
+    }
+  }, []);
+
+  // 스크롤 위치 저장 (언마운트 시)
+  useEffect(() => {
+    const handleScroll = () => {
+      onUpdateCache({ scrollPosition: window.scrollY });
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [onUpdateCache]);
+
+  // 무한 스크롤
   useEffect(() => {
     const target = loadMoreRef.current;
     if (!target || !supabase || loading || !hasMore) return;
@@ -86,7 +126,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
       if (entries[0].isIntersecting && !fetchingRef.current && hasMore) {
         loadRecipes(false);
       }
-    }, { threshold: 0.1, rootMargin: '100px' });
+    }, { threshold: 0.1, rootMargin: '200px' });
 
     observer.observe(target);
     return () => observer.disconnect();
@@ -98,7 +138,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   };
 
   return (
-    <div className="pt-8 px-6 animate-fadeIn pb-10 min-h-full max-w-full">
+    <div ref={containerRef} className="pt-8 px-6 animate-fadeIn pb-10 min-h-full max-w-full">
       <div className="flex justify-between items-start mb-6">
         <div className="space-y-2 flex-1 min-w-0">
           <h2 className="text-3xl font-black text-slate-900 truncate">모두의 <span className="brand-orange-text">레시피</span></h2>
@@ -128,7 +168,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
         </div>
       </div>
 
-      <div className="space-y-4 mb-6 sticky top-0 bg-white/90 backdrop-blur-sm z-10 py-2">
+      <div className="space-y-4 mb-6 sticky top-0 bg-white/95 backdrop-blur-md z-10 py-2 border-b border-slate-50">
         <div className="relative">
           <input 
             type="text" 
@@ -149,7 +189,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
             <button 
               key={tab.id} 
               onClick={() => setSortBy(tab.id as any)} 
-              className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${sortBy === tab.id ? 'bg-white text-[#ff5d01] shadow-sm' : 'text-slate-400'}`}
+              className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${sortBy === tab.id ? 'bg-white text-[#ff5d01] shadow-sm translate-y-[-1px]' : 'text-slate-400 hover:text-slate-600'}`}
             >
               {tab.label}
             </button>
@@ -162,10 +202,11 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
           <button 
             key={`${recipe.id}-${idx}`} 
             onClick={() => onSelectRecipe(recipe)} 
-            className="w-full bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex gap-4 text-left active:scale-[0.98] transition-all hover:border-orange-100 group"
+            className="w-full bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex gap-4 text-left active:scale-[0.98] transition-all hover:border-orange-100 group animate-fadeIn"
+            style={{ animationDelay: `${Math.min(idx * 50, 500)}ms` }}
           >
             <div className="w-20 h-20 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-50">
-              <img src={recipe.thumbnailUrl || recipe.imageUrl || 'https://via.placeholder.com/150?text=No+Image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+              <img src={recipe.thumbnailUrl || recipe.imageUrl || 'https://via.placeholder.com/150?text=No+Image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
               <div>
@@ -184,20 +225,25 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
         ))}
         
         {recipes.length === 0 && !loading && (
-          <div className="text-center py-20 text-slate-300">
-            <p className="text-4xl mb-3">🍳</p>
-            <p className="text-sm font-bold">검색 결과가 없거나 레시피가 없어요.</p>
+          <div className="text-center py-24 text-slate-300">
+            <p className="text-5xl mb-4">👨‍🍳</p>
+            <p className="text-sm font-bold">찾으시는 레시피가 아직 없어요.</p>
           </div>
         )}
 
-        <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
+        <div ref={loadMoreRef} className="h-32 flex items-center justify-center">
           {loading && (
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 border-2 border-orange-100 border-t-[#ff5d01] rounded-full animate-spin"></div>
-              <span className="text-xs text-slate-400 font-bold">로딩 중...</span>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 border-2 border-orange-100 border-t-[#ff5d01] rounded-full animate-spin"></div>
+              <span className="text-[10px] text-slate-400 font-bold">새로운 레시피를 가져오고 있어요</span>
             </div>
           )}
-          {!hasMore && recipes.length > 0 && <span className="text-[10px] text-slate-300">마지막 레시피입니다.</span>}
+          {!hasMore && recipes.length > 0 && (
+            <div className="flex flex-col items-center gap-2 py-4">
+              <div className="w-1 h-1 bg-slate-200 rounded-full"></div>
+              <span className="text-[10px] text-slate-300 font-bold">모든 레시피를 다 확인하셨습니다.</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

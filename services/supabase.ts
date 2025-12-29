@@ -74,16 +74,15 @@ const uploadImageToStorage = async (base64Image: string, prefix = 'full'): Promi
       });
     
     if (uploadError) {
-      console.error(`[Storage Error] ${prefix}:`, uploadError.message);
-      // 권한 에러(42501)인 경우 사용자에게 알림
-      if (uploadError.message.includes('42501') || uploadError.message.toLowerCase().includes('permission')) {
-        console.error("💡 Storage 권한 에러: Supabase 대시보드 Storage -> recipe-images -> Policies에서 모든 권한을 허용해주세요.");
+      console.error(`[Storage Error] ${prefix}:`, uploadError);
+      // RLS Policy Error check
+      if (uploadError.message?.includes('row-level security') || (uploadError as any).status === 400) {
+        console.error("💡 Storage RLS 권한 에러: SQL Editor에서 Storage 정책을 다시 실행하거나, 대시보드에서 'recipe-images' 버킷이 Public인지 확인하세요.");
       }
       return null;
     }
     
     const { data: urlData } = supabase.storage.from('recipe-images').getPublicUrl(fileName);
-    console.log(`[Storage Success] ${prefix} URL:`, urlData.publicUrl);
     return urlData.publicUrl;
   } catch (err) {
     console.error('[Storage Unexpected Error]:', err);
@@ -124,16 +123,20 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
     let finalImageUrl = recipe.imageUrl;
     let finalThumbnailUrl = undefined;
 
-    // 1. 이미지 업로드 시도
+    // 1. 이미지 업로드 시도 (실패하더라도 텍스트 저장을 위해 catch 처리)
     if (recipe.imageUrl && recipe.imageUrl.startsWith('data:image')) {
-      const thumbBase64 = await createThumbnail(recipe.imageUrl);
-      const [fullUrl, thumbUrl] = await Promise.all([
-        uploadImageToStorage(recipe.imageUrl, 'full'),
-        uploadImageToStorage(thumbBase64, 'thumb')
-      ]);
-      
-      if (fullUrl) finalImageUrl = fullUrl;
-      if (thumbUrl) finalThumbnailUrl = thumbUrl;
+      try {
+        const thumbBase64 = await createThumbnail(recipe.imageUrl);
+        const [fullUrl, thumbUrl] = await Promise.all([
+          uploadImageToStorage(recipe.imageUrl, 'full'),
+          uploadImageToStorage(thumbBase64, 'thumb')
+        ]);
+        
+        if (fullUrl) finalImageUrl = fullUrl;
+        if (thumbUrl) finalThumbnailUrl = thumbUrl;
+      } catch (imgErr) {
+        console.warn("[DB] Image upload failed, saving text only.", imgErr);
+      }
     }
 
     // 2. 레시피 데이터 준비
@@ -164,10 +167,7 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
       .single();
 
     if (error) {
-      console.error('[DB Insert Error]:', error.message, error.details);
-      if (error.code === '42501') {
-        console.error("💡 DB RLS 권한 에러: SQL Editor에서 'create policy' 명령어를 다시 실행해주세요.");
-      }
+      console.error('[DB Insert Error]:', error.message);
       return null;
     }
 

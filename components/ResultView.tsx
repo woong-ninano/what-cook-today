@@ -12,11 +12,11 @@ import {
   fetchComments, 
   addComment 
 } from '../services/supabase.ts';
-import { User } from '@supabase/supabase-js';
 
 interface Props {
   result: RecipeResult;
-  user: User | null;
+  // Use any to bypass version-specific typing issues with the User object
+  user: any | null;
   canGoBack: boolean;
   canGoForward: boolean;
   onReset: () => void;

@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchCommunityRecipes, signInWithGoogle, signOut } from '../services/supabase';
 import { RecipeResult } from '../types';
-import { User } from '@supabase/supabase-js';
 
 interface Props {
   onSelectRecipe: (recipe: RecipeResult) => void;
-  user: User | null;
+  // Use any to bypass version-specific typing issues with the User object
+  user: any | null;
 }
 
 const PAGE_SIZE = 5;
@@ -61,9 +61,9 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   useEffect(() => {
     setPage(0);
     setHasMore(true);
-    setRecipes([]); // 깜빡임 방지 또는 스켈레톤 UI를 위해 유지할 수도 있음
+    setRecipes([]); 
     loadRecipes(true);
-  }, [sortBy, searchTerm]); // loadRecipes는 의존성에서 제외 (useCallback 사용하더라도 루프 방지)
+  }, [sortBy, searchTerm]); 
 
   // Infinite Scroll Observer
   useEffect(() => {
@@ -89,7 +89,6 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // useEffect에서 searchTerm 변경 감지하여 자동 로딩됨
   };
 
   const getStarAverage = (sum?: number, count?: number) => {
@@ -207,10 +206,15 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
                 className="w-full bg-white rounded-[24px] p-4 shadow-sm border border-slate-100 text-left hover:border-orange-200 transition-all active:scale-[0.98] group"
               >
                 <div className="flex gap-4">
-                  {/* Thumbnail */}
+                  {/* Thumbnail Optimization: Use thumbnailUrl if available */}
                   <div className="w-20 h-20 rounded-[18px] bg-slate-50 overflow-hidden shrink-0 border border-slate-100 relative">
-                    {recipe.imageUrl ? (
-                      <img src={recipe.imageUrl} alt={recipe.dishName} className="w-full h-full object-cover" loading="lazy" />
+                    {(recipe.thumbnailUrl || recipe.imageUrl) ? (
+                      <img 
+                        src={recipe.thumbnailUrl || recipe.imageUrl} 
+                        alt={recipe.dishName} 
+                        className="w-full h-full object-cover" 
+                        loading="lazy" 
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-2xl">🥣</div>
                     )}

@@ -30,6 +30,7 @@ export interface RecipeResult {
   similarRecipes: SimilarRecipe[];
   referenceLinks: ReferenceLink[];
   imageUrl?: string;
+  thumbnailUrl?: string; // 썸네일 URL 추가
   created_at?: string; // DB created_at
   rating_sum?: number;
   rating_count?: number;

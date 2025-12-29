@@ -11,7 +11,6 @@ const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 const parseSafeJSON = (text: string | undefined): any => {
   if (!text) return null;
   try {
-    // 마크다운 코드 블록 제거 및 순수 JSON 추출
     const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
@@ -133,16 +132,38 @@ export const fetchSuggestions = async (ingredients: string) => {
 
 export const generateRecipe = async (choices: UserChoices, isRegenerate: boolean = false): Promise<RecipeResult> => {
   const ai = getAI();
-  const prompt = `[Mission] ${choices.mode} 모드 레시피 생성. 
-  - 재료: ${choices.ingredients}
-  - 양념: ${choices.sauces.join(', ')}
-  - 스타일: ${choices.cuisine}
-  - 대상: ${choices.partner}
-  - 테마: ${choices.theme}
-  - 난이도: ${choices.level}
-  ${isRegenerate ? "이전과 다른 새로운 레시피를 제안해줘." : ""} 
-  모든 응답은 한국어로 하고, ingredientsList는 반드시 <ul><li> 태그를 사용한 HTML 형식으로 작성해줘. 
-  easyRecipe와 gourmetRecipe는 상세한 단계별 조리법을 포함해줘.`;
+  
+  // 모드별 지침 강화
+  let modeInstruction = "";
+  if (choices.mode === 'fridge') {
+    modeInstruction = "냉장고에 남은 재료들을 남김없이 활용하면서도 맛의 조화를 이루는 '파먹기' 레시피를 제안해줘.";
+  } else if (choices.mode === 'seasonal') {
+    modeInstruction = "지금이 아니면 맛보기 힘든 제철 식재료의 풍미와 영양을 극대화하는 품격 있는 레시피를 제안해줘.";
+  } else if (choices.mode === 'convenience') {
+    modeInstruction = "편의점에서 쉽게 구할 수 있는 가공식품과 간편식을 조합해 만드는 놀라운 '꿀조합' 퓨전 레시피를 제안해줘.";
+  }
+
+  const prompt = `
+  [Mission: ${choices.mode.toUpperCase()} MODE RECIPE GENERATION]
+  지침: ${modeInstruction}
+  
+  재료 현황:
+  - 주재료: ${choices.ingredients}
+  - 양념/소스: ${choices.sauces.join(', ') || '기본 양념'}
+  - 요리 스타일: ${choices.cuisine}
+  - 함께 먹는 사람: ${choices.partner}
+  - 상황/테마: ${choices.theme}
+  - 사용자 요리 수준: ${choices.level}
+  
+  ${isRegenerate ? "참고: 이전에 제안했던 것과는 완전히 다른 새로운 아이디어의 레시피를 제안해줘." : ""} 
+
+  [요구사항]
+  1. 모든 응답은 친절한 한국어로 작성해.
+  2. dishName은 매력적인 요리 이름을 지어줘.
+  3. ingredientsList는 반드시 <ul><li> 태그를 사용한 HTML 형식이어야 해.
+  4. easyRecipe와 gourmetRecipe는 각각 5~7단계 정도의 상세 조리법을 HTML <ol><li> 태그 형식으로 작성해.
+  5. similarRecipes는 3가지를 추천해줘.
+  `;
 
   try {
     const response = await ai.models.generateContent({
@@ -196,7 +217,7 @@ export const generateDishImage = async (dishName: string): Promise<string | unde
       model: 'gemini-2.5-flash-image',
       contents: { 
         parts: [{ 
-          text: `Professional food photography of ${dishName}. Top-down view, studio lighting, appetizing, high resolution, vibrant colors. No text.` 
+          text: `Professional high-end food photography of ${dishName}. Studio lighting, extremely appetizing, macro shot, blurred background, vibrant natural colors. No text, no watermark.` 
         }] 
       },
     });

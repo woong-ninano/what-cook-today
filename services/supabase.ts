@@ -64,7 +64,6 @@ const uploadImageToStorage = async (base64Image: string, prefix = 'full'): Promi
     const blob = base64ToBlob(base64Image);
     const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
     
-    console.log(`[Storage] Uploading ${prefix} image...`);
     const { data, error: uploadError } = await supabase.storage
       .from('recipe-images')
       .upload(fileName, blob, { 
@@ -75,10 +74,6 @@ const uploadImageToStorage = async (base64Image: string, prefix = 'full'): Promi
     
     if (uploadError) {
       console.error(`[Storage Error] ${prefix}:`, uploadError);
-      // RLS Policy Error check
-      if (uploadError.message?.includes('row-level security') || (uploadError as any).status === 400) {
-        console.error("💡 Storage RLS 권한 에러: SQL Editor에서 Storage 정책을 다시 실행하거나, 대시보드에서 'recipe-images' 버킷이 Public인지 확인하세요.");
-      }
       return null;
     }
     
@@ -121,34 +116,29 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
   if (!supabase) return null;
   try {
     let finalImageUrl = recipe.imageUrl;
-    let finalThumbnailUrl = undefined;
+    let finalThumbnailUrl = recipe.thumbnailUrl;
 
-    // 1. 이미지 업로드 시도 (실패하더라도 텍스트 저장을 위해 catch 처리)
+    // 이미지 업로드 로직 강화 (개별 업로드 오류 처리)
     if (recipe.imageUrl && recipe.imageUrl.startsWith('data:image')) {
       try {
         const thumbBase64 = await createThumbnail(recipe.imageUrl);
-        const [fullUrl, thumbUrl] = await Promise.all([
-          uploadImageToStorage(recipe.imageUrl, 'full'),
-          uploadImageToStorage(thumbBase64, 'thumb')
-        ]);
+        const fullUrl = await uploadImageToStorage(recipe.imageUrl, 'full');
+        const thumbUrl = await uploadImageToStorage(thumbBase64, 'thumb');
         
         if (fullUrl) finalImageUrl = fullUrl;
         if (thumbUrl) finalThumbnailUrl = thumbUrl;
+        else if (fullUrl) finalThumbnailUrl = fullUrl; // 썸네일 실패 시 원본 사용
       } catch (imgErr) {
-        console.warn("[DB] Image upload failed, saving text only.", imgErr);
+        console.warn("[DB] Image processing failed, using original base64 if available", imgErr);
       }
     }
 
-    // 2. 레시피 데이터 준비
     const recipeToSave = { 
       ...recipe, 
       imageUrl: finalImageUrl, 
       thumbnailUrl: finalThumbnailUrl 
     };
 
-    console.log("[DB] Inserting recipe data...");
-    
-    // 3. Insert 실행
     const { data, error } = await supabase
       .from('recipes')
       .insert([{
@@ -171,7 +161,6 @@ export const saveRecipeToDB = async (recipe: RecipeResult) => {
       return null;
     }
 
-    console.log("[DB Success] Recipe saved with ID:", data.id);
     return data;
   } catch (err) {
     console.error('[Save Flow Failed]:', err);
@@ -204,10 +193,7 @@ export const fetchCommunityRecipes = async (
     const from = page * pageSize;
     const { data, error } = await query.range(from, from + pageSize - 1);
     
-    if (error) {
-      console.error("Fetch Community Error:", error.message);
-      return [];
-    }
+    if (error) return [];
 
     return data.map((row: any) => ({
       id: row.id,
@@ -222,7 +208,6 @@ export const fetchCommunityRecipes = async (
       vote_fail: row.vote_fail
     } as RecipeResult));
   } catch (err) {
-    console.error("Community Global Error:", err);
     return [];
   }
 };

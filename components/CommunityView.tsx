@@ -83,7 +83,6 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
 
   // 정렬/검색 변경 시
   useEffect(() => {
-    // 이미 캐시가 있고, 검색어나 소팅만 바꾼 경우 로컬에서 먼저 정렬 시도
     if (recipes.length > 0) {
       const locallySorted = sortLocally(recipes, sortBy);
       setRecipes(locallySorted);
@@ -99,7 +98,6 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
   // 스크롤 복구
   useEffect(() => {
     if (containerRef.current && cache.scrollPosition > 0) {
-      // 컴포넌트 마운트 후 약간의 지연을 주어 렌더링 후 스크롤
       setTimeout(() => {
         window.scrollTo(0, cache.scrollPosition);
       }, 50);
@@ -138,29 +136,29 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
   };
 
   return (
-    <div ref={containerRef} className="pt-8 px-6 animate-fadeIn pb-10 min-h-full max-w-full">
+    <div ref={containerRef} className="pt-8 px-5 animate-fadeIn pb-10 min-h-full w-full max-w-full box-border overflow-x-hidden">
       <div className="flex justify-between items-start mb-6">
-        <div className="space-y-2 flex-1 min-w-0">
+        <div className="space-y-1.5 flex-1 min-w-0">
           <h2 className="text-3xl font-black text-slate-900 truncate">모두의 <span className="brand-orange-text">레시피</span></h2>
-          <p className="text-slate-600 font-bold text-sm">요리 고수들의 조합을 훔쳐보세요.</p>
+          <p className="text-slate-600 font-bold text-xs sm:text-sm">요리 고수들의 조합을 훔쳐보세요.</p>
         </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
+        <div className="flex flex-col items-end gap-1.5 shrink-0 ml-4">
           {user ? (
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200 truncate max-w-[80px]">
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200 truncate max-w-[90px]">
                 {user.email?.split('@')[0]}
               </span>
               <button onClick={signOut} className="text-[9px] text-slate-400 underline mt-1">로그아웃</button>
             </div>
           ) : (
-            <button onClick={signInWithGoogle} className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 shadow-sm active:scale-95 transition-all">로그인</button>
+            <button onClick={signInWithGoogle} className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 shadow-sm active:scale-95 transition-all">로그인</button>
           )}
           <button 
             onClick={() => loadRecipes(true)} 
-            className="p-2 bg-slate-50 rounded-full hover:rotate-180 transition-transform active:bg-slate-100 disabled:opacity-50"
+            className="p-1.5 bg-slate-50 rounded-full hover:rotate-180 transition-transform active:bg-slate-100 disabled:opacity-50"
             disabled={loading}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
               <polyline points="21 3 21 8 16 8"/>
             </svg>
@@ -168,16 +166,16 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
         </div>
       </div>
 
-      <div className="space-y-4 mb-6 sticky top-0 bg-white/95 backdrop-blur-md z-10 py-2 border-b border-slate-50">
+      <div className="space-y-4 mb-6 sticky top-0 bg-white/95 backdrop-blur-md z-10 py-2 border-b border-slate-50 w-full">
         <div className="relative">
           <input 
             type="text" 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
             placeholder="요리 이름 검색..." 
-            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-[#ff5d01] shadow-sm"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-[#ff5d01] shadow-sm box-border"
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30 text-lg">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-30 text-base">🔍</span>
         </div>
         <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
           {[
@@ -189,7 +187,7 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
             <button 
               key={tab.id} 
               onClick={() => setSortBy(tab.id as any)} 
-              className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${sortBy === tab.id ? 'bg-white text-[#ff5d01] shadow-sm translate-y-[-1px]' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${sortBy === tab.id ? 'bg-white text-[#ff5d01] shadow-sm translate-y-[-1px]' : 'text-slate-400 hover:text-slate-600'}`}
             >
               {tab.label}
             </button>
@@ -197,26 +195,30 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="flex flex-col gap-4 w-full box-border">
         {recipes.map((recipe, idx) => (
           <button 
             key={`${recipe.id}-${idx}`} 
             onClick={() => onSelectRecipe(recipe)} 
-            className="w-full bg-white rounded-3xl p-4 shadow-sm border border-slate-100 flex gap-4 text-left active:scale-[0.98] transition-all hover:border-orange-100 group animate-fadeIn"
+            className="w-full bg-white rounded-3xl p-3 shadow-sm border border-slate-100 flex gap-3 text-left active:scale-[0.98] transition-all hover:border-orange-100 group animate-fadeIn box-border overflow-hidden"
             style={{ animationDelay: `${Math.min(idx * 50, 500)}ms` }}
           >
-            <div className="w-20 h-20 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-50">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-50">
               <img src={recipe.thumbnailUrl || recipe.imageUrl || 'https://via.placeholder.com/150?text=No+Image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
             </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-[#ff5d01]">{recipe.dishName}</h3>
-                <p className="text-[10px] text-slate-400 line-clamp-1 mt-1 font-medium">{recipe.comment}</p>
+            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-[#ff5d01] leading-tight">
+                  {recipe.dishName}
+                </h3>
+                <p className="text-[10px] text-slate-400 truncate mt-1 font-medium">
+                  {recipe.comment}
+                </p>
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 mt-2">
-                <span className="text-yellow-500">⭐ {getStarLabel(recipe.rating_sum, recipe.rating_count)}</span>
-                <span className="text-green-500">😋 {recipe.vote_success}</span>
-                <span className="ml-auto text-[9px] text-slate-300">
+              <div className="flex items-center gap-2 sm:gap-3 text-[10px] font-bold text-slate-400 mt-1.5 overflow-hidden">
+                <span className="text-yellow-500 shrink-0">⭐ {getStarLabel(recipe.rating_sum, recipe.rating_count)}</span>
+                <span className="text-green-500 shrink-0">😋 {recipe.vote_success}</span>
+                <span className="ml-auto text-[9px] text-slate-300 shrink-0 truncate">
                   {recipe.created_at ? new Date(recipe.created_at).toLocaleDateString().slice(2) : ''}
                 </span>
               </div>
@@ -225,21 +227,21 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user, cache, onUpdateC
         ))}
         
         {recipes.length === 0 && !loading && (
-          <div className="text-center py-24 text-slate-300">
+          <div className="text-center py-24 text-slate-300 w-full">
             <p className="text-5xl mb-4">👨‍🍳</p>
             <p className="text-sm font-bold">찾으시는 레시피가 아직 없어요.</p>
           </div>
         )}
 
-        <div ref={loadMoreRef} className="h-32 flex items-center justify-center">
+        <div ref={loadMoreRef} className="h-24 flex items-center justify-center w-full">
           {loading && (
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-orange-100 border-t-[#ff5d01] rounded-full animate-spin"></div>
-              <span className="text-[10px] text-slate-400 font-bold">새로운 레시피를 가져오고 있어요</span>
+              <span className="text-[10px] text-slate-400 font-bold">가져오고 있어요</span>
             </div>
           )}
           {!hasMore && recipes.length > 0 && (
-            <div className="flex flex-col items-center gap-2 py-4">
+            <div className="flex flex-col items-center gap-1.5 py-4">
               <div className="w-1 h-1 bg-slate-200 rounded-full"></div>
               <span className="text-[10px] text-slate-300 font-bold">모든 레시피를 다 확인하셨습니다.</span>
             </div>

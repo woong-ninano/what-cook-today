@@ -33,7 +33,6 @@ const App: React.FC = () => {
   const [convenienceType, setConvenienceType] = useState<'meal' | 'snack'>('meal');
 
   useEffect(() => {
-    // 초기 상태 설정 시 try-catch로 감싸서 보안 에러 방지
     try {
       window.history.replaceState({ step: Step.Welcome, activeTab: 'home' }, '', window.location.search);
     } catch (e) {
@@ -57,7 +56,6 @@ const App: React.FC = () => {
       });
     }
 
-    // 로그인 리다이렉트 후 레시피 복구
     const savedHistory = sessionStorage.getItem('recipe_restore_history');
     const savedIndex = sessionStorage.getItem('recipe_restore_index');
     if (savedHistory && savedIndex) {
@@ -80,7 +78,6 @@ const App: React.FC = () => {
     setStep(nextStep);
     setActiveTab(nextTab);
     
-    // History API 호출 시 발생할 수 있는 보안 에러(origin mismatch 등) 방지
     try {
       const url = `?tab=${nextTab}&step=${nextStep}`;
       const state = { step: nextStep, activeTab: nextTab };
@@ -98,8 +95,6 @@ const App: React.FC = () => {
     navigateTo(Step.Loading, 'home', 'replace');
     try {
       const finalChoices = overridePrompt ? { ...choices, ingredients: overridePrompt, theme: choices.mode === 'convenience' ? '편의점 꿀조합' : choices.theme } : choices;
-      
-      // Gemini API 호출
       const recipe = await generateRecipe(finalChoices, isRegen);
       
       let imageUrl: string | undefined = undefined;
@@ -107,7 +102,6 @@ const App: React.FC = () => {
         imageUrl = await generateDishImage(recipe.dishName);
       }
 
-      // DB 저장 (실패해도 흐름은 유지)
       const savedData = await saveRecipeToDB({ ...recipe, imageUrl });
       const newResult = { 
         ...recipe, 
@@ -153,6 +147,39 @@ const App: React.FC = () => {
     }
   };
 
+  const loadSeasonalItems = async (isMore: boolean = false) => {
+    setIsLoading(true);
+    try {
+      const excluded = isMore ? seasonalItems.map(i => i.name) : [];
+      const items = await fetchSeasonalIngredients(excluded);
+      if (isMore) setSeasonalItems(prev => [...prev, ...items]);
+      else setSeasonalItems(items);
+      setChoices(prev => ({ ...prev, mode: 'seasonal', ingredients: '' }));
+      navigateTo(Step.SeasonalSelection, 'home');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadConvenienceItems = async (type: 'meal' | 'snack', isMore: boolean = false) => {
+    setIsLoading(true);
+    try {
+      const excluded = isMore ? convenienceItems.map(i => i.name) : [];
+      const items = await fetchConvenienceTopics(excluded, type);
+      if (isMore) setConvenienceItems(prev => [...prev, ...items]);
+      else setConvenienceItems(items);
+      setConvenienceType(type);
+      setChoices(prev => ({ ...prev, mode: 'convenience' }));
+      navigateTo(Step.ConvenienceSelection, 'home');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderContent = () => {
     if (activeTab === 'community') return <CommunityView onSelectRecipe={handleCommunityRecipeSelect} user={user} />;
     if (isLoading) return <LoadingStep customMessage="데이터를 불러오는 중입니다..." />;
@@ -160,15 +187,70 @@ const App: React.FC = () => {
     const result = currentRecipeIndex >= 0 ? recipeHistory[currentRecipeIndex] : null;
 
     switch (step) {
-      case Step.Welcome: return <WelcomeStep onNext={() => navigateTo(Step.ModeSelection, 'home')} />;
-      case Step.ModeSelection: return <ModeSelectionStep onFridge={() => navigateTo(Step.Ingredients, 'home')} onSeasonal={async () => { setIsLoading(true); try { const items = await fetchSeasonalIngredients(); setSeasonalItems(items); navigateTo(Step.SeasonalSelection, 'home'); } catch(e){} finally { setIsLoading(false); } }} onConvenience={async () => { setIsLoading(true); try { const items = await fetchConvenienceTopics(); setConvenienceItems(items); navigateTo(Step.ConvenienceSelection, 'home'); } catch(e){} finally { setIsLoading(false); } }} onBack={() => navigateTo(Step.Welcome, 'home')} />;
-      case Step.Ingredients: return <IngredientsStep choices={choices} setChoices={setChoices} onNext={async () => { setIsLoading(true); try { const data = await fetchSuggestions(choices.ingredients); setSuggestions(data); navigateTo(Step.Suggestions, 'home'); } catch(e){} finally { setIsLoading(false); } }} onBack={() => navigateTo(Step.ModeSelection, 'home')} />;
-      case Step.Suggestions: return <SuggestionStep choices={choices} setChoices={setChoices} suggestions={suggestions} onNext={() => navigateTo(Step.Preferences, 'home')} onBack={() => navigateTo(Step.Ingredients, 'home')} />;
-      case Step.Preferences: return <PreferencesStep choices={choices} setChoices={setChoices} onNext={() => navigateTo(Step.Environment, 'home')} onBack={() => navigateTo(Step.Suggestions, 'home')} />;
-      case Step.Environment: return <EnvironmentStep choices={choices} setChoices={setChoices} onGenerate={() => startGeneration()} onBack={() => navigateTo(Step.Preferences, 'home')} />;
-      case Step.Result: return result ? <ResultView result={result} user={user} canGoBack={currentRecipeIndex > 0} canGoForward={currentRecipeIndex < recipeHistory.length - 1} onReset={() => navigateTo(Step.Welcome, 'home')} onRegenerate={() => startGeneration(true)} onViewAlternative={(title) => startGeneration(false, title)} onGoBack={() => setCurrentRecipeIndex(prev => prev - 1)} onGoForward={() => setCurrentRecipeIndex(prev => prev + 1)} onSaveContext={saveContextForLogin} /> : null;
-      case Step.Loading: return <LoadingStep />;
-      default: return <WelcomeStep onNext={() => navigateTo(Step.ModeSelection, 'home')} />;
+      case Step.Welcome: 
+        return <WelcomeStep onNext={() => navigateTo(Step.ModeSelection, 'home')} />;
+      
+      case Step.ModeSelection: 
+        return <ModeSelectionStep 
+          onFridge={() => { setChoices(prev => ({ ...prev, mode: 'fridge' })); navigateTo(Step.Ingredients, 'home'); }} 
+          onSeasonal={() => loadSeasonalItems()} 
+          onConvenience={() => loadConvenienceItems('meal')} 
+          onBack={() => navigateTo(Step.Welcome, 'home')} 
+        />;
+      
+      case Step.Ingredients: 
+        return <IngredientsStep 
+          choices={choices} 
+          setChoices={setChoices} 
+          onNext={async () => { 
+            setIsLoading(true); 
+            try { 
+              const data = await fetchSuggestions(choices.ingredients); 
+              setSuggestions(data); 
+              navigateTo(Step.Suggestions, 'home'); 
+            } catch(e){} finally { setIsLoading(false); } 
+          }} 
+          onBack={() => navigateTo(Step.ModeSelection, 'home')} 
+        />;
+
+      case Step.SeasonalSelection:
+        return <SeasonalStep 
+          choices={choices} 
+          setChoices={setChoices} 
+          items={seasonalItems} 
+          onNext={() => navigateTo(Step.Preferences, 'home')} 
+          onBack={() => navigateTo(Step.ModeSelection, 'home')} 
+          onMore={() => loadSeasonalItems(true)}
+        />;
+
+      case Step.ConvenienceSelection:
+        return <ConvenienceStep 
+          type={convenienceType} 
+          items={convenienceItems} 
+          onSelect={(name) => { setChoices(prev => ({ ...prev, ingredients: name })); navigateTo(Step.Preferences, 'home'); }} 
+          onLoadMore={() => loadConvenienceItems(convenienceType, true)} 
+          onLoadSnack={() => loadConvenienceItems('snack')} 
+          onLoadMeal={() => loadConvenienceItems('meal')} 
+          onBack={() => navigateTo(Step.ModeSelection, 'home')} 
+        />;
+      
+      case Step.Suggestions: 
+        return <SuggestionStep choices={choices} setChoices={setChoices} suggestions={suggestions} onNext={() => navigateTo(Step.Preferences, 'home')} onBack={() => navigateTo(Step.Ingredients, 'home')} />;
+      
+      case Step.Preferences: 
+        return <PreferencesStep choices={choices} setChoices={setChoices} onNext={() => navigateTo(Step.Environment, 'home')} onBack={() => choices.mode === 'fridge' ? navigateTo(Step.Suggestions, 'home') : navigateTo(Step.ModeSelection, 'home')} />;
+      
+      case Step.Environment: 
+        return <EnvironmentStep choices={choices} setChoices={setChoices} onGenerate={() => startGeneration()} onBack={() => navigateTo(Step.Preferences, 'home')} />;
+      
+      case Step.Result: 
+        return result ? <ResultView result={result} user={user} canGoBack={currentRecipeIndex > 0} canGoForward={currentRecipeIndex < recipeHistory.length - 1} onReset={() => navigateTo(Step.Welcome, 'home')} onRegenerate={() => startGeneration(true)} onViewAlternative={(title) => startGeneration(false, title)} onGoBack={() => setCurrentRecipeIndex(prev => prev - 1)} onGoForward={() => setCurrentRecipeIndex(prev => prev + 1)} onSaveContext={saveContextForLogin} /> : null;
+      
+      case Step.Loading: 
+        return <LoadingStep />;
+      
+      default: 
+        return <WelcomeStep onNext={() => navigateTo(Step.ModeSelection, 'home')} />;
     }
   };
 

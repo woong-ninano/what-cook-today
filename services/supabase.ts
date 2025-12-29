@@ -5,9 +5,14 @@ import { RecipeResult, Comment } from '../types';
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = (supabaseUrl && supabaseKey) 
+// Supabase 클라이언트 초기화 및 상태 체크
+export const supabase = (supabaseUrl && supabaseKey && supabaseUrl !== "undefined") 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
+
+if (!supabase) {
+  console.error("⚠️ Supabase 환경 변수가 설정되지 않았거나 유효하지 않습니다. VITE_SUPABASE_URL 및 VITE_SUPABASE_ANON_KEY를 확인하세요.");
+}
 
 /**
  * UTILS
@@ -75,11 +80,23 @@ const uploadImageToStorage = async (base64Image: string, prefix = 'full'): Promi
  * AUTH
  */
 export const signInWithGoogle = async () => {
-  if (!supabase) return;
-  await (supabase.auth as any).signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin, queryParams: { access_type: 'offline', prompt: 'consent' } },
-  });
+  if (!supabase) {
+    alert("Supabase 연결 설정이 되어 있지 않습니다.");
+    return;
+  }
+  try {
+    const { error } = await (supabase.auth as any).signInWithOAuth({
+      provider: 'google',
+      options: { 
+        redirectTo: window.location.origin, 
+        queryParams: { access_type: 'offline', prompt: 'consent' } 
+      },
+    });
+    if (error) throw error;
+  } catch (err) {
+    console.error("Login Error:", err);
+    alert("로그인 시도 중 오류가 발생했습니다.");
+  }
 };
 
 export const signOut = async () => {
@@ -157,34 +174,67 @@ export const fetchCommunityRecipes = async (
   search: string, 
   sortBy: 'latest' | 'rating' | 'success' | 'comments',
   page: number = 0,
-  pageSize: number = 5
+  pageSize: number = 8
 ): Promise<RecipeResult[]> => {
   if (!supabase) return [];
-  let query = supabase.from('recipes').select(`id, dish_name, image_url, thumbnail_url, comment, created_at, rating_sum, rating_count, vote_success, vote_fail, download_count, comments(count)`);
-  if (search) query = query.ilike('dish_name', `%${search}%`);
   
-  if (sortBy === 'rating') query = query.order('rating_sum', { ascending: false });
-  else if (sortBy === 'success') query = query.order('vote_success', { ascending: false });
-  else query = query.order('created_at', { ascending: false }).order('id', { ascending: false });
+  try {
+    // 1단계: 기본 쿼리 구성 (관계성 쿼리 comments(count)는 DB 설정에 따라 실패할 수 있으므로 주의)
+    let query = supabase.from('recipes').select(`
+      id, 
+      dish_name, 
+      image_url, 
+      thumbnail_url, 
+      comment, 
+      created_at, 
+      rating_sum, 
+      rating_count, 
+      vote_success, 
+      vote_fail, 
+      download_count
+    `);
 
-  const from = page * pageSize;
-  const { data, error } = await query.range(from, from + pageSize - 1);
-  if (error) return [];
+    if (search) query = query.ilike('dish_name', `%${search}%`);
+    
+    // 2단계: 정렬 적용
+    if (sortBy === 'rating') {
+      // 별점 평균(sum/count)을 바로 정렬할 수 없으므로 보통 sum 기준 정렬
+      query = query.order('rating_sum', { ascending: false });
+    } else if (sortBy === 'success') {
+      query = query.order('vote_success', { ascending: false });
+    } else if (sortBy === 'comments') {
+      // 댓글순 정렬은 Join 이슈가 있을 수 있어 기본적으로 최신순으로 대체하거나 추후 보강
+      query = query.order('created_at', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false }).order('id', { ascending: false });
+    }
 
-  return data.map((row: any) => ({
-    id: row.id,
-    dishName: row.dish_name || '이름 없음',
-    imageUrl: row.image_url,
-    thumbnailUrl: row.thumbnail_url || row.image_url,
-    comment: row.comment || '',
-    created_at: row.created_at,
-    rating_sum: row.rating_sum,
-    rating_count: row.rating_count,
-    download_count: row.download_count,
-    vote_success: row.vote_success || 0,
-    vote_fail: row.vote_fail || 0,
-    comment_count: row.comments?.[0]?.count || 0
-  } as RecipeResult));
+    const from = page * pageSize;
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    
+    if (error) {
+      console.error("Supabase Query Error:", error);
+      return [];
+    }
+
+    return data.map((row: any) => ({
+      id: row.id,
+      dishName: row.dish_name || '이름 없음',
+      imageUrl: row.image_url,
+      thumbnailUrl: row.thumbnail_url || row.image_url,
+      comment: row.comment || '',
+      created_at: row.created_at,
+      rating_sum: row.rating_sum || 0,
+      rating_count: row.rating_count || 0,
+      download_count: row.download_count || 0,
+      vote_success: row.vote_success || 0,
+      vote_fail: row.vote_fail || 0,
+      comment_count: 0 // 관계성 쿼리 제거로 인한 기본값 설정
+    } as RecipeResult));
+  } catch (err) {
+    console.error("Fetch Community Recipes Global Error:", err);
+    return [];
+  }
 };
 
 export const incrementDownloadCount = async (id: number) => {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { fetchCommunityRecipes, signInWithGoogle, signOut } from '../services/supabase';
+import { fetchCommunityRecipes, signInWithGoogle, signOut, supabase } from '../services/supabase';
 import { RecipeResult } from '../types';
 
 interface Props {
@@ -13,6 +13,7 @@ const PAGE_SIZE = 8;
 const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   const [recipes, setRecipes] = useState<RecipeResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'latest' | 'rating' | 'success' | 'comments'>('latest');
   const [page, setPage] = useState(0);
@@ -22,9 +23,10 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const loadRecipes = useCallback(async (isReset: boolean = false) => {
-    if (fetchingRef.current) return;
+    if (fetchingRef.current || !supabase) return;
     fetchingRef.current = true;
     setLoading(true);
+    setError(null);
 
     try {
       const targetPage = isReset ? 0 : page;
@@ -42,28 +44,36 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
         });
         setPage(prev => prev + 1);
       }
+      
+      if (isReset && newRecipes.length === 0 && searchTerm === '') {
+        // 데이터가 아예 없는 경우 (테이블은 있지만 내용 없음)
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Community Load Error:", err);
+      setError("레시피를 불러오는 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
   }, [page, searchTerm, sortBy]);
 
-  // 검색어나 정렬 기준 변경 시 초기화
   useEffect(() => {
+    if (!supabase) {
+      setError("Supabase 설정이 필요합니다. 관리자에게 문의하세요.");
+      return;
+    }
     setPage(0);
     setHasMore(true);
     setRecipes([]);
     const timeoutId = setTimeout(() => {
       loadRecipes(true);
-    }, 400); // 디바운싱
+    }, 400);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, sortBy]);
+  }, [searchTerm, sortBy, loadRecipes]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target) return;
+    if (!target || !supabase) return;
 
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !fetchingRef.current && hasMore && !loading) {
@@ -96,11 +106,24 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
               <button onClick={signOut} className="text-[9px] text-slate-400 underline mt-1">로그아웃</button>
             </div>
           ) : (
-            <button onClick={signInWithGoogle} className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600">로그인</button>
+            <button onClick={signInWithGoogle} className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 shadow-sm active:scale-95 transition-all">로그인</button>
           )}
-          <button onClick={() => loadRecipes(true)} className="p-2 bg-slate-50 rounded-full hover:rotate-180 transition-transform"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
+          <button onClick={() => loadRecipes(true)} className="p-2 bg-slate-50 rounded-full hover:rotate-180 transition-transform active:bg-slate-100"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg></button>
         </div>
       </div>
+
+      {!supabase && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-center mb-6">
+          <p className="text-red-600 font-bold text-sm mb-2">🔌 연결 오류</p>
+          <p className="text-red-400 text-xs leading-relaxed">환경 변수가 설정되지 않았습니다.<br/>Supabase URL과 Key를 등록해 주세요.</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 text-center mb-6">
+          <p className="text-orange-600 font-bold text-xs">{error}</p>
+        </div>
+      )}
 
       <div className="space-y-4 mb-6 sticky top-0 bg-white/80 backdrop-blur-sm z-10 py-2">
         <div className="relative">
@@ -130,17 +153,16 @@ const CommunityView: React.FC<Props> = ({ onSelectRecipe, user }) => {
               <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 mt-2">
                 <span className="text-yellow-500">⭐ {getStarLabel(recipe.rating_sum, recipe.rating_count)}</span>
                 <span className="text-green-500">😋 {recipe.vote_success}</span>
-                <span className="text-blue-400">💬 {recipe.comment_count}</span>
-                <span className="ml-auto text-[9px] text-slate-300">{new Date(recipe.created_at || '').toLocaleDateString().slice(2)}</span>
+                <span className="ml-auto text-[9px] text-slate-300">{recipe.created_at ? new Date(recipe.created_at).toLocaleDateString().slice(2) : ''}</span>
               </div>
             </div>
           </button>
         ))}
         
-        {recipes.length === 0 && !loading && (
+        {recipes.length === 0 && !loading && !error && (
           <div className="text-center py-20 text-slate-300">
             <p className="text-4xl mb-3">🍳</p>
-            <p className="text-sm">검색 결과가 없어요.</p>
+            <p className="text-sm">아직 등록된 레시피가 없어요.</p>
           </div>
         )}
 
